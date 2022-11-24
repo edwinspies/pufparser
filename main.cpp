@@ -1,36 +1,13 @@
-#include <iostream>
-#include <vector>
-#include <sstream>
-#include <fstream>
-#include <map>
-#include <list>
-#include <algorithm>
-
 #include "DataParser.h"
 
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <list>
+#include <algorithm>
+#include <tuple>
+
 using namespace std;
-
-//vector structure
-/*
- * 0. sample number
- * 1. date
- * 2. board type
- * 3. board id
- * 
- */
-
-enum structure {
-  SAMPLE_NUMBER,
-  DATE,
-  BOARD_TYPE,
-  BOARD_ID,
-  UNDEFINED_COLUMN_4,
-  ADDRESS,
-  NO_OF_BITS,
-  UNDEFINED_COLUMN_7,
-  UNDEFINED_COLUMN_8,
-  RAWDATA
-};
 
 int main() {
   double *probArray;
@@ -40,8 +17,11 @@ int main() {
   auto *dp = new DataParser("sram-result.csv");
 
   //output a file for each sample in the respective folder
+  //Use this function to generate the data for the python script
   //dp->processAndOutputDataToNDFormat();
 
+
+  //These lines of code will generate a picture for the first board ID that is in the list
   allBoardIDs = dp->extractAllBoardIDs();
   samplesOfUniqueBoardID = dp->extractSamplesByBoardID(*allBoardIDs.begin());
   probArray = dp->getProbabilityOfIndex(samplesOfUniqueBoardID);
