@@ -98,6 +98,15 @@ void DataParser::getDataFromCSV(const string &fileName) {
 /// @brief takes the list of all samples and proceeds to output them into the Python ND function format
 void DataParser::processAndOutputDataToNDFormat() {
   cout << "This will take a while depending on the no. of samples" << endl;
+
+  int check;
+  check = mkdir("data", 0777);
+  //is no dir was created, return
+  if (check == -1 && errno != EEXIST) {
+	cout << "data directory could not be created";
+	return;
+  }
+
   for (const tuple<int, string, string> &singleSample : p_listOfSamples) {
 	writeDeviceDataIntoFile(singleSample);
   }
@@ -107,7 +116,7 @@ void DataParser::processAndOutputDataToNDFormat() {
 void DataParser::writeDeviceDataIntoFile(const tuple<int, string, string> &data) {
   //create dir
   int check;
-  const string &dirname = get<TUPLE_BOARD_ID>(data);
+  const string &dirname = "data/" + get<TUPLE_BOARD_ID>(data);
 
   check = mkdir(dirname.c_str(), 0777);
   //is no dir was created, return
