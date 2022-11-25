@@ -11,29 +11,12 @@
 
 using namespace std;
 
-/// @brief Delivers the index of the std csv file; can be modified to read other csv structured puf data
-enum CSV_STRUCTURE {
-  SAMPLE_NUMBER,
-  DATE,
-  BOARD_TYPE,
-  BOARD_ID,
-  UNDEFINED_COLUMN_4,
-  ADDRESS,
-  NO_OF_BITS,
-  UNDEFINED_COLUMN_7,
-  UNDEFINED_COLUMN_8,
-  RAWDATA
-};
-
-/// @brief Defines the index for the sample tuple
-enum TUPLE_STRUCTURE {
-  TUPLE_SAMPLE_NUMBER,
-  TUPLE_BOARD_ID,
-  TUPLE_RAWDATA
-};
-
 DataParser::DataParser(const string &fileName) {
   getDataFromCSV(fileName);
+}
+
+DataParser::~DataParser() {
+  p_listOfSamples.clear();
 }
 
 tuple<int, string, string> DataParser::getNextLineAndSplitIntoTokens(istream &str) {
@@ -163,7 +146,7 @@ double *DataParser::getProbabilityOfIndex(const list<tuple<int, string, string>>
   auto *returnArray = (double *) (malloc(arraySize * sizeof(double)));
 
   for (tuple<int, string, string> sample : samplesOfUniqueDevice) {
-	for (int i = 0; i < arraySize && get<TUPLE_RAWDATA>(sample).size(); ++i) {
+	for (int i = 0; (i < arraySize) && (i < get<TUPLE_RAWDATA>(sample).size()); ++i) {
 	  if (get<TUPLE_RAWDATA>(sample).at(i) == '1') {
 		returnArray[i]++;
 	  }
@@ -172,17 +155,18 @@ double *DataParser::getProbabilityOfIndex(const list<tuple<int, string, string>>
 
   unsigned long sizeOfData = samplesOfUniqueDevice.size();
   for (int i = 0; i < arraySize; ++i) {
-	returnArray[i] /= sizeOfData;
+	returnArray[i] /= (double) sizeOfData;
   }
 
-  //return nullptr;
   return returnArray;
 }
 /// @brief Will write individual pixels in the file between 0-255,
 /// depending on the corresponding values in the double array, ranging vom 0-1
-void DataParser::outputGraph(double *array, const string &addFileName) {
-  const string &filename = "picture";
-  ofstream pictureFile(filename + "_" + addFileName + ".pgm");
+void DataParser::outputGraph(const list<tuple<int, string, string>> &samplesOfUniqueDevice) {
+  const string &filename = "picture_" + get<TUPLE_BOARD_ID>(samplesOfUniqueDevice.front());
+  double* array = getProbabilityOfIndex(samplesOfUniqueDevice);
+
+  ofstream pictureFile(filename + ".pgm");
   int possibleValues = 255;
 
   pictureFile << "P2" //Image format
@@ -221,6 +205,7 @@ set<string> DataParser::extractAllBoardIDs() {
 
   return returnSet;
 }
+
 
 
 
