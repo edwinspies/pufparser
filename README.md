@@ -6,4 +6,5 @@ Usage:
 ./pufparser -f [filename] -i [request] or [alternative]
 
 [request] if the data was requested from the university website;
-[alternative] if the data was ürpvided in the alternative format e.g. by email
+
+[alternative] if the data was provided in the alternative format e.g. by email
