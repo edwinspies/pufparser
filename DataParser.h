@@ -9,19 +9,20 @@
 using namespace std;
 
 /// @brief Delivers the index of the std csv file; can be modified to read other csv structured puf data
-enum CSV_STRUCTURE {
-  SAMPLE_NUMBER,
-  DATE,
-  BOARD_TYPE,
-  BOARD_ID,
+enum STD_CSV_STRUCTURE {
+  SAMPLE_NUMBER_STD,
+  DATE_STD,
+  BOARD_TYPE_STD,
+  BOARD_ID_STD,
   UNDEFINED_COLUMN_4,
-  ADDRESS,
-  NO_OF_BITS,
+  ADDRESS_STD,
+  NO_OF_BITS_STD,
   UNDEFINED_COLUMN_7,
   UNDEFINED_COLUMN_8,
-  RAWDATA,
-  STD_CSV_LAST =
-  RAWDATA //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
+  RAW_DATA_STD,
+  STD_CSV_LAST = RAW_DATA_STD
+  //STD_CSV_LAST needs to be updated if the structure changes,
+  //this is required to not hardcode any index values in other functions
 };
 
 /// @brief Delivers the index of the csv file that sergio provided; can be modified to read other csv structured puf data
@@ -30,10 +31,11 @@ enum SERGIO_CSV_STRUCTURE {
   BOARD_ID_SERGIO,
   POSITION_IN_CHAIN_SERGIO,
   ADDRESS_SERGIO,
-  RAWDATA_SERGIO,
+  RAW_DATA_SERGIO,
   DATE_SERGIO,
-  SERGIO_CSV_LAST =
-  DATE_SERGIO //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
+  SERGIO_CSV_LAST = DATE_SERGIO
+  //SERGIO_CSV_LAST needs to be updated if the structure changes,
+  //this is required to not hardcode any index values in other functions
 };
 
 /// @brief Defines the index for the sample tuple which is standardized for all read csv formats
@@ -41,7 +43,7 @@ enum TUPLE_STRUCTURE {
   TUPLE_SAMPLE_NUMBER,
   TUPLE_BOARD_ID,
   TUPLE_ADDRESS,
-  TUPLE_RAWDATA
+  TUPLE_RAW_DATA
 };
 
 class DataParser {

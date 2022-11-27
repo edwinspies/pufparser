@@ -22,7 +22,7 @@ DataParser::~DataParser() {
   p_listOfSamples.clear();
 }
 
-/// @brief Reads in a CSV that has been saved in the format that is available at the Grenoble University; check enum CSV_STRUCTURE
+/// @brief Reads in a CSV that has been saved in the format that is available at the Grenoble University; check enum STD_CSV_STRUCTURE
 void DataParser::getDataFromCSV(const string &fileName) {
   filebuf fb;
 
@@ -86,9 +86,9 @@ tuple<int, string, string, string> DataParser::getTupleFromStdCSVToken(const vec
 
   //if an input line (for example the last) is empty or shorter than expected,
   // accessing the index at 9 would result in an error
-  if (result.size() >= CSV_STRUCTURE::STD_CSV_LAST) {
+  if (result.size() >= STD_CSV_STRUCTURE::STD_CSV_LAST) {
 	try {
-	  sampleNumber = stoi(result.at(CSV_STRUCTURE::SAMPLE_NUMBER), &pos);
+	  sampleNumber = stoi(result.at(SAMPLE_NUMBER_STD), &pos);
 	}
 	catch (std::invalid_argument const &ex) {
 	  cout << "std::invalid_argument::what(): " << ex.what() << '\n';
@@ -96,9 +96,9 @@ tuple<int, string, string, string> DataParser::getTupleFromStdCSVToken(const vec
 	}
 
 	get<TUPLE_SAMPLE_NUMBER>(returnTuple) = sampleNumber;
-	get<TUPLE_BOARD_ID>(returnTuple) = result.at(CSV_STRUCTURE::BOARD_ID);
-	get<TUPLE_ADDRESS>(returnTuple) = result.at(CSV_STRUCTURE::ADDRESS);
-	get<TUPLE_RAWDATA>(returnTuple) = result.at(CSV_STRUCTURE::RAWDATA);
+	get<TUPLE_BOARD_ID>(returnTuple) = result.at(BOARD_ID_STD);
+	get<TUPLE_ADDRESS>(returnTuple) = result.at(ADDRESS_STD);
+	get<TUPLE_RAW_DATA>(returnTuple) = result.at(RAW_DATA_STD);
   }
 
   return returnTuple;
@@ -118,27 +118,30 @@ tuple<int, string, string, string> DataParser::getTupleFromSergioCSVToken(const 
 
   //if an input line (for example the last) is empty or shorter than expected,
   // accessing the index at 9 would result in an error
-  if (result.size() >= SERGIO_CSV_STRUCTURE::SERGIO_CSV_LAST) {
+  if (result.size() >= SERGIO_CSV_LAST) {
+	//since there is no sample number in the csv, the dataparser object has its own counter to count samples
 	sampleNumber = currentSample++;
 	get<TUPLE_SAMPLE_NUMBER>(returnTuple) = sampleNumber;
-	get<TUPLE_BOARD_ID>(returnTuple) = result.at(SERGIO_CSV_STRUCTURE::BOARD_ID_SERGIO);
-	get<TUPLE_ADDRESS>(returnTuple) = result.at(SERGIO_CSV_STRUCTURE::ADDRESS_SERGIO);
-	rawData = convertRawDataSergio(result.at(SERGIO_CSV_STRUCTURE::RAWDATA_SERGIO));
-	get<TUPLE_RAWDATA>(returnTuple) = rawData;
+	get<TUPLE_BOARD_ID>(returnTuple) = result.at(BOARD_ID_SERGIO);
+	get<TUPLE_ADDRESS>(returnTuple) = result.at(ADDRESS_SERGIO);
+	rawData = convertRawDataSergio(result.at(RAW_DATA_SERGIO));
+	get<TUPLE_RAW_DATA>(returnTuple) = rawData;
   }
 
   return returnTuple;
 }
 
+/// @brief Converts the comma separated 8bit decimal numbers into single bit strings
+/// @details Needed because raw data bytes in this CSV format are also comma separated
+/// (without this function every raw data byte would be split into its own token)
 string DataParser::convertRawDataSergio(const string &data) {
+  string returnString, token;
   string localData = data;
-  std::string delimiter = ",";
+  const string delimiter = ",";
   vector<string> tokens;
-  string returnString;
-
   size_t pos;
-  std::string token;
-  while ((pos = localData.find(delimiter)) != std::string::npos) {
+
+  while ((pos = localData.find(delimiter)) != string::npos) {
 	token = localData.substr(0, pos);
 	tokens.emplace_back(token);
 	localData.erase(0, pos + delimiter.length());
@@ -152,13 +155,14 @@ string DataParser::convertRawDataSergio(const string &data) {
   return returnString;
 }
 
-/// @brief takes the list of all samples and proceeds to output them into the Python ND function format
+/// @brief Takes the list of all samples and proceeds to output them into the Python ND function format
+/// @details Depending on the no. of samples, this will take a few minutes since many folders and file are created
 void DataParser::processAndOutputDataToNDFormat() {
   cout << "This will take a while depending on the no. of samples" << endl;
 
   int check;
   check = mkdir("data", 0777);
-  //is no dir was created, return
+  //if no dir was created, return
   if (check == -1 && errno != EEXIST) {
 	cout << "data directory could not be created";
 	return;
@@ -172,7 +176,6 @@ void DataParser::processAndOutputDataToNDFormat() {
 /// @param data Requires a single sample Tuple that will be written into a file
 /// @brief receives a single device sample and processes this data to output a file for the Python ND Function
 void DataParser::writeDeviceDataIntoFile(const tuple<int, string, string, string> &data) {
-  //create dir
   int check;
   const string &dirname = "data/" + get<TUPLE_BOARD_ID>(data) + "_" + get<TUPLE_ADDRESS>(data);
 
@@ -188,7 +191,7 @@ void DataParser::writeDeviceDataIntoFile(const tuple<int, string, string, string
   ofstream MyFile(dirname + "/" + filename);
 
   //process data bits into comma separated bits
-  const string &deviceData = get<TUPLE_RAWDATA>(data);
+  const string &deviceData = get<TUPLE_RAW_DATA>(data);
   string commaSeparatedDeviceData = commaSeparateData(deviceData);
 
   // Write to the file
@@ -217,7 +220,7 @@ string DataParser::commaSeparateData(const string &deviceRawData) {
 /// @param data List that contains samples (ideally only from the same board ID & starting address)
 /// @brief values close to 1 have a high tendency to be 1, analog for 0
 double *DataParser::getProbabilityOfIndex(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice) {
-  int arraySize = 4096;
+  const int arraySize = 4096;
 
   auto *returnArray = (double *) (calloc(sizeof(double), arraySize));
   if (returnArray == nullptr) {
@@ -226,8 +229,8 @@ double *DataParser::getProbabilityOfIndex(const list<tuple<int, string, string, 
   }
 
   for (tuple<int, string, string, string> sample : samplesOfUniqueDevice) {
-	for (int i = 0; (i < arraySize) && (i < get<TUPLE_RAWDATA>(sample).size()); ++i) {
-	  if (get<TUPLE_RAWDATA>(sample).at(i) == '1') returnArray[i]++;
+	for (int i = 0; (i < arraySize) && (i < get<TUPLE_RAW_DATA>(sample).size()); ++i) {
+	  if (get<TUPLE_RAW_DATA>(sample).at(i) == '1') returnArray[i]++;
 	}
   }
 
@@ -269,13 +272,13 @@ void DataParser::outputGraph(const list<tuple<int, string, string, string>> &sam
 void DataParser::outputSingleImage(const list<tuple<int, string, string, string>> &samplesOfDeviceWithEqualAddress) {
   int check;
   double *array;
-  int possiblePixelValues = 255;
+  const int possiblePixelValues = 255;
   const string &subfolder = "pictures/";
+  const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
   const string &boardID = get<TUPLE_BOARD_ID>(samplesOfDeviceWithEqualAddress.front());
   const string &address = get<TUPLE_ADDRESS>(samplesOfDeviceWithEqualAddress.front());
 
-  //TODO add no. of samples to the filename
-  const string &filename = subfolder + "picture_" + boardID + "_" + address;
+  const string &filename = subfolder + "picture_" + boardID + "_" + address + "_" + noOfSamples;
 
   check = mkdir(subfolder.c_str(), 0777);
   //is no dir was created, return
@@ -285,7 +288,6 @@ void DataParser::outputSingleImage(const list<tuple<int, string, string, string>
   }
 
   array = getProbabilityOfIndex(samplesOfDeviceWithEqualAddress);
-
   ofstream pictureFile(filename + ".pgm");
 
   pictureFile << "P2" //Image format
