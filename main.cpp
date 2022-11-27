@@ -18,8 +18,6 @@ void operations(const string &filename, bool fileformat) {
   auto start = std::chrono::steady_clock::now();
 
   dp = new DataParser(filename, fileformat);
-
-
   //output a file for each sample in the respective folder
   //Use this function to generate the data for the python script
   //dp->processAndOutputDataToNDFormat();
@@ -27,12 +25,12 @@ void operations(const string &filename, bool fileformat) {
   //These lines of code will generate a picture for the first board ID that is in the list
   allBoardIDs = dp->extractAllBoardIDs();
 
-  int i = 0;
+  //int i = 0;
   for (const string &s : allBoardIDs) {
-	if (i > 0) break;
+	//if (i > 1) break;
 	samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
 	DataParser::outputGraph(samplesOfUniqueBoardID);
-	i++;
+	//i++;
   }
 
   auto end = std::chrono::steady_clock::now();

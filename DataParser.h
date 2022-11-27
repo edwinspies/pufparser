@@ -20,7 +20,8 @@ enum CSV_STRUCTURE {
   UNDEFINED_COLUMN_7,
   UNDEFINED_COLUMN_8,
   RAWDATA,
-  STD_CSV_LAST = RAWDATA //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
+  STD_CSV_LAST =
+  RAWDATA //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
 };
 
 /// @brief Delivers the index of the csv file that sergio provided; can be modified to read other csv structured puf data
@@ -31,7 +32,8 @@ enum SERGIO_CSV_STRUCTURE {
   ADDRESS_SERGIO,
   RAWDATA_SERGIO,
   DATE_SERGIO,
-  SERGIO_CSV_LAST = DATE_SERGIO //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
+  SERGIO_CSV_LAST =
+  DATE_SERGIO //Needs to be updated if the structure changes, this is required to not hardcode any index values in other functions
 };
 
 /// @brief Defines the index for the sample tuple which is standardized for all read csv formats
@@ -48,19 +50,15 @@ class DataParser {
   ~DataParser();
 
   void processAndOutputDataToNDFormat();
-
   list<tuple<int, string, string, string>> extractSamplesByBoardID(const string &boardID);
   static void outputGraph(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
   set<string> extractAllBoardIDs();
 
-  ///////////////////TEST///////////////////
-  bool testRawData();
-
  private:
   void getDataFromCSV(const string &fileName);
   tuple<int, string, string, string> getNextLineAndSplitIntoTokens(istream &str);
-  static tuple<int, string, string, string> getTupleFromStdCSVToken(const vector<string>& result);
-  tuple<int, string, string, string> getTupleFromSergioCSVToken(const vector<string>& result);
+  static tuple<int, string, string, string> getTupleFromStdCSVToken(const vector<string> &result);
+  tuple<int, string, string, string> getTupleFromSergioCSVToken(const vector<string> &result);
   static void writeDeviceDataIntoFile(const tuple<int, string, string, string> &data);
   static string commaSeparateData(const string &deviceData);
   static double *getProbabilityOfIndex(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
