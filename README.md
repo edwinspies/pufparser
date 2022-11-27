@@ -1,2 +1,2 @@
 # pufparser
-Liest die Daten aus einer vordefinierten CSV Datei ein und transformiert die Daten und verschiedene Formate.
+Reads in data from a given CSV file and transforms it into different formats (e.g. pixel graphs or individual sample bit string files)
