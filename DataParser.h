@@ -25,16 +25,16 @@ enum STD_CSV_STRUCTURE {
   //this is required to not hardcode any index values in other functions
 };
 
-/// @brief Delivers the index of the csv file that sergio provided; can be modified to read other csv structured puf data
-enum SERGIO_CSV_STRUCTURE {
-  BOARD_TYPE_SERGIO,
-  BOARD_ID_SERGIO,
-  POSITION_IN_CHAIN_SERGIO,
-  ADDRESS_SERGIO,
-  RAW_DATA_SERGIO,
-  DATE_SERGIO,
-  SERGIO_CSV_LAST = DATE_SERGIO
-  //SERGIO_CSV_LAST needs to be updated if the structure changes,
+/// @brief Delivers the index of the csv file that ALTERNATE provided; can be modified to read other csv structured puf data
+enum ALTERNATE_CSV_STRUCTURE {
+  BOARD_TYPE_ALTERNATE,
+  BOARD_ID_ALTERNATE,
+  POSITION_IN_CHAIN_ALTERNATE,
+  ADDRESS_ALTERNATE,
+  RAW_DATA_ALTERNATE,
+  DATE_ALTERNATE,
+  ALTERNATE_CSV_LAST = DATE_ALTERNATE
+  //ALTERNATE_CSV_LAST needs to be updated if the structure changes,
   //this is required to not hardcode any index values in other functions
 };
 
@@ -60,12 +60,12 @@ class DataParser {
   void getDataFromCSV(const string &fileName);
   tuple<int, string, string, string> getNextLineAndSplitIntoTokens(istream &str);
   static tuple<int, string, string, string> getTupleFromStdCSVToken(const vector<string> &result);
-  tuple<int, string, string, string> getTupleFromSergioCSVToken(const vector<string> &result);
+  tuple<int, string, string, string> getTupleFromAlternateCSVToken(const vector<string> &result);
+  static string convertRawDataAlternate(const string &data);
   static void writeDeviceDataIntoFile(const tuple<int, string, string, string> &data);
   static string commaSeparateData(const string &deviceData);
   static double *getProbabilityOfIndex(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
   static void outputSingleImage(const list<tuple<int, string, string, string>> &samplesOfDeviceWithEqualAddress);
-  static string convertRawDataSergio(const string &data);
 
   list<tuple<int, string, string, string>> p_listOfSamples;
   bool altFileFormat;

@@ -71,7 +71,7 @@ tuple<int, string, string, string> DataParser::getNextLineAndSplitIntoTokens(ist
   }
 
   if (altFileFormat) {
-	returnTuple = getTupleFromSergioCSVToken(result);
+	returnTuple = getTupleFromAlternateCSVToken(result);
   } else {
 	returnTuple = getTupleFromStdCSVToken(result);
   }
@@ -104,10 +104,10 @@ tuple<int, string, string, string> DataParser::getTupleFromStdCSVToken(const vec
   return returnTuple;
 }
 
-tuple<int, string, string, string> DataParser::getTupleFromSergioCSVToken(const vector<string> &unsanitizedResult) {
+tuple<int, string, string, string> DataParser::getTupleFromAlternateCSVToken(const vector<string> &unsanitizedResult) {
   tuple<int, string, string, string> returnTuple;
   vector<string> result;
-  int sampleNumber;
+  int sampleNumber = currentSample++;
   string rawData;
 
   for (const auto &i : unsanitizedResult) {
@@ -118,13 +118,12 @@ tuple<int, string, string, string> DataParser::getTupleFromSergioCSVToken(const 
 
   //if an input line (for example the last) is empty or shorter than expected,
   // accessing the index at 9 would result in an error
-  if (result.size() >= SERGIO_CSV_LAST) {
+  if (result.size() >= ALTERNATE_CSV_LAST) {
 	//since there is no sample number in the csv, the dataparser object has its own counter to count samples
-	sampleNumber = currentSample++;
 	get<TUPLE_SAMPLE_NUMBER>(returnTuple) = sampleNumber;
-	get<TUPLE_BOARD_ID>(returnTuple) = result.at(BOARD_ID_SERGIO);
-	get<TUPLE_ADDRESS>(returnTuple) = result.at(ADDRESS_SERGIO);
-	rawData = convertRawDataSergio(result.at(RAW_DATA_SERGIO));
+	get<TUPLE_BOARD_ID>(returnTuple) = result.at(BOARD_ID_ALTERNATE);
+	get<TUPLE_ADDRESS>(returnTuple) = result.at(ADDRESS_ALTERNATE);
+	rawData = convertRawDataAlternate(result.at(RAW_DATA_ALTERNATE));
 	get<TUPLE_RAW_DATA>(returnTuple) = rawData;
   }
 
@@ -134,8 +133,8 @@ tuple<int, string, string, string> DataParser::getTupleFromSergioCSVToken(const 
 /// @brief Converts the comma separated 8bit decimal numbers into single bit strings
 /// @details Needed because raw data bytes in this CSV format are also comma separated
 /// (without this function every raw data byte would be split into its own token)
-string DataParser::convertRawDataSergio(const string &data) {
-  string returnString, token;
+string DataParser::convertRawDataAlternate(const string &data) {
+  string returnString, token, binary;
   string localData = data;
   const string delimiter = ",";
   vector<string> tokens;
@@ -148,7 +147,7 @@ string DataParser::convertRawDataSergio(const string &data) {
   }
 
   for (const string &s : tokens) {
-	string binary = bitset<8>(stoi(s)).to_string(); //to binary
+	binary = bitset<8>(stoi(s)).to_string(); //to binary
 	returnString += binary;
   }
 
@@ -177,6 +176,7 @@ void DataParser::processAndOutputDataToNDFormat() {
 /// @brief receives a single device sample and processes this data to output a file for the Python ND Function
 void DataParser::writeDeviceDataIntoFile(const tuple<int, string, string, string> &data) {
   int check;
+  ofstream outFile;
   const string &dirname = "data/" + get<TUPLE_BOARD_ID>(data) + "_" + get<TUPLE_ADDRESS>(data);
 
   check = mkdir(dirname.c_str(), 0777);
@@ -186,19 +186,19 @@ void DataParser::writeDeviceDataIntoFile(const tuple<int, string, string, string
 	return;
   }
 
-  // Create and open a text file
-  const string &filename = to_string(get<TUPLE_SAMPLE_NUMBER>(data));
-  ofstream MyFile(dirname + "/" + filename);
+  //instead of writing a file per sample id, call the file sample and
+  const string &filename = "sample";
+  outFile.open(dirname + "/" + filename, std::ios_base::app);
 
   //process data bits into comma separated bits
   const string &deviceData = get<TUPLE_RAW_DATA>(data);
   string commaSeparatedDeviceData = commaSeparateData(deviceData);
 
   // Write to the file
-  MyFile << commaSeparatedDeviceData;
+  outFile << commaSeparatedDeviceData << endl;
 
   // Close the file
-  MyFile.close();
+  outFile.close();
 }
 
 /// @param deviceRawData Requires a raw bit string of a single device
@@ -214,6 +214,8 @@ string DataParser::commaSeparateData(const string &deviceRawData) {
 	}
 	i++;
   }
+  //remove last ','
+  returnString.pop_back();
   return returnString;
 }
 
