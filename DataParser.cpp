@@ -76,6 +76,9 @@ tuple<int, string, string, string> DataParser::getNextLineAndSplitIntoTokens(ist
 	returnTuple = getTupleFromStdCSVToken(result);
   }
 
+  std::transform(get<TUPLE_BOARD_ID>(returnTuple).begin()+2, get<TUPLE_BOARD_ID>(returnTuple).end(),get<TUPLE_BOARD_ID>(returnTuple).begin()+2, ::toupper);
+  std::transform(get<TUPLE_ADDRESS>(returnTuple).begin()+2, get<TUPLE_ADDRESS>(returnTuple).end(),get<TUPLE_ADDRESS>(returnTuple).begin()+2, ::toupper);
+
   return returnTuple;
 }
 
@@ -274,7 +277,7 @@ void DataParser::outputGraph(const list<tuple<int, string, string, string>> &sam
 void DataParser::outputSingleImage(const list<tuple<int, string, string, string>> &samplesOfDeviceWithEqualAddress) {
   int check;
   double *array;
-  const int possiblePixelValues = 255;
+  const int possiblePixelValues = 63;
   const string &subfolder = "pictures/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
   const string &boardID = get<TUPLE_BOARD_ID>(samplesOfDeviceWithEqualAddress.front());
