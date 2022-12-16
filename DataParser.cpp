@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <tuple>
 #include <bitset>
+#include <valarray>
 
 using namespace std;
 
@@ -76,8 +77,17 @@ tuple<int, string, string, string> DataParser::getNextLineAndSplitIntoTokens(ist
 	returnTuple = getTupleFromStdCSVToken(result);
   }
 
-  std::transform(get<TUPLE_BOARD_ID>(returnTuple).begin()+2, get<TUPLE_BOARD_ID>(returnTuple).end(),get<TUPLE_BOARD_ID>(returnTuple).begin()+2, ::toupper);
-  std::transform(get<TUPLE_ADDRESS>(returnTuple).begin()+2, get<TUPLE_ADDRESS>(returnTuple).end(),get<TUPLE_ADDRESS>(returnTuple).begin()+2, ::toupper);
+  //Transform the board id and address string toUpper starting from the third char the leave the leading '0x' intact
+  if (get<TUPLE_BOARD_ID>(returnTuple).size() > 2 && get<TUPLE_ADDRESS>(returnTuple).size() > 2) {
+	std::transform(get<TUPLE_BOARD_ID>(returnTuple).begin() + 2,
+				   get<TUPLE_BOARD_ID>(returnTuple).end(),
+				   get<TUPLE_BOARD_ID>(returnTuple).begin() + 2,
+				   ::toupper);
+	std::transform(get<TUPLE_ADDRESS>(returnTuple).begin() + 2,
+				   get<TUPLE_ADDRESS>(returnTuple).end(),
+				   get<TUPLE_ADDRESS>(returnTuple).begin() + 2,
+				   ::toupper);
+  }
 
   return returnTuple;
 }
@@ -245,6 +255,120 @@ double *DataParser::getProbabilityOfIndex(const list<tuple<int, string, string, 
   }
 
   return returnArray;
+}
+
+void DataParser::prepareBinEntrop() {
+  set<string> allBoardIDs = extractAllBoardIDs();
+  list<tuple<int, string, string, string>> samples;
+  list<tuple<int, string, string, string>> samples2;
+
+  list<list<tuple<int, string, string, string>>> groupedSamples;
+  list<list<tuple<int, string, string, string>>> groupedSamples2;
+
+  samples = extractSamplesByBoardID("0x30314710303537322F80380");
+  samples2 = extractSamplesByBoardID("0x3430471836733632294300");
+
+  groupedSamples = groupSamplesByAddress(samples);
+  groupedSamples2 = groupSamplesByAddress(samples2);
+
+  for (const auto &boardID : allBoardIDs) {
+	samples = extractSamplesByBoardID(boardID);
+
+	groupedSamples = groupSamplesByAddress(samples);
+  }
+
+  calcBinaryEntropy(groupedSamples.front(), groupedSamples2.front());
+  calcBinaryEntropy(groupedSamples.back(), groupedSamples2.back());
+  calcBinaryEntropy(groupedSamples.front(), groupedSamples2.back());
+}
+
+void DataParser::calcBinaryEntropy(const list<tuple<int, string, string, string>> &firstBoard,
+								   const list<tuple<int, string, string, string>> &secondBoard) {
+  set<string> allBoardIDs = extractAllBoardIDs();
+  list<tuple<int, string, string, string>> samples;
+  double *arr, *arr2;
+  list<list<tuple<int, string, string, string>>> groupedSamples;
+  const string &subfolder = "entropy/";
+  const string &filename =
+	  subfolder + "entropy_" + get<TUPLE_BOARD_ID>(firstBoard.front()) + "_" + get<TUPLE_BOARD_ID>(secondBoard.front())
+		  + "_" + get<TUPLE_ADDRESS>(firstBoard.front()) + "_" + get<TUPLE_ADDRESS>(secondBoard.front());
+
+  int check = mkdir(subfolder.c_str(), 0777);
+  //is no dir was created, return
+  if (check == -1 && errno != EEXIST) {
+	cout << "directory could not be created";
+	return;
+  }
+
+  arr = getProbabilityOfIndex(firstBoard);
+  for (int i = 0; i < 4096; ++i) {
+	if (arr[i] != 0.0 && arr[i] != 1.0) {
+	  //binary entropy
+	  arr[i] = (-arr[i]) * std::log2(arr[i]) - (1 - arr[i]) * std::log2(1 - arr[i]);
+	}
+  }
+
+  vector<double> first;
+  for (int i = 0; i < 4096; i++) {
+	first.emplace_back(arr[i]);
+  }
+  std::sort(first.begin(), first.end());
+
+  arr2 = getProbabilityOfIndex(secondBoard);
+  for (int i = 0; i < 4096; ++i) {
+	if (arr2[i] != 0.0 && arr2[i] != 1.0) {
+	  //binary entropy
+	  arr2[i] = (-arr2[i]) * std::log2(arr2[i]) - (1 - arr2[i]) * std::log2(1 - arr2[i]);
+	}
+  }
+
+  vector<double> second;
+  for (int i = 0; i < 4096; i++) {
+	second.emplace_back(arr2[i]);
+  }
+  std::sort(second.begin(), second.end());
+
+  ofstream entropyFile(filename);
+
+  for (int i = 0; i < 4096; i++) {
+	entropyFile << "bit " << i << " like, unlike, difference\t"
+				<< first[i]
+				<< ((first[i] == 0.0 || first[i] == 1.0) ? "\t\t\t" : "\t\t")
+				<< second[i]
+				<< ((second[i] == 0.0 || second[i] == 1.0) ? "\t\t\t" : "\t\t")
+				<< std::abs(second[i] - first[i]) << std::endl;
+  }
+
+  entropyFile.close();
+
+  free(arr);
+  free(arr2);
+}
+
+list<list<tuple<int, string, string, string>>> DataParser::groupSamplesByAddress(const list<tuple<int,
+																								  string,
+																								  string,
+																								  string>> &samplesOfUniqueDevice) {
+  list<tuple<int, string, string, string>> localSamplesOfDevice(samplesOfUniqueDevice);
+  list<list<tuple<int, string, string, string>>> returnList;
+
+  //loop until the last sample is taken out of the list and into samplesOfDeviceWithEqualAddress
+  while (!localSamplesOfDevice.empty()) {
+	list<tuple<int, string, string, string>> samplesOfDeviceWithEqualAddress;
+	string startingAddress = get<TUPLE_ADDRESS>(localSamplesOfDevice.front());
+	auto i = localSamplesOfDevice.begin();
+	while (i != localSamplesOfDevice.end()) {
+	  if (startingAddress == get<TUPLE_ADDRESS>(i.operator*())) {
+		samplesOfDeviceWithEqualAddress.emplace_back(i.operator*());
+		localSamplesOfDevice.erase(i++);  // alternatively, i = items.erase(i);
+	  } else {
+		++i;
+	  }
+	}
+	returnList.emplace_back(samplesOfDeviceWithEqualAddress);
+  }
+
+  return returnList;
 }
 
 /// @param samplesOfUniqueDevice List of samples that have the same unique board ID

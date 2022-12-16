@@ -23,28 +23,20 @@ void processUserinputForPictureGen(const string& inputBoardID, const string& inp
   set<string> localBoardIDs;
   list<tuple<int, string, string, string>> samplesOfUniqueBoardID;
 
-  //TODO convert input strings toUpper so they match the internal structure
-  string inputBoardIDUpper = inputBoardID;
-  string inputAddressUpper = inputAddress;
-
-
-  std::transform(inputBoardIDUpper.begin()+2, inputBoardIDUpper.end(),inputBoardIDUpper.begin()+2, ::toupper);
-  std::transform(inputAddressUpper.begin()+2, inputAddressUpper.end(),inputAddressUpper.begin()+2, ::toupper);
-
   //load localBoardIDs either with the given input or all board IDs
-  if (inputBoardIDUpper != "all") {
-	localBoardIDs.insert(inputBoardIDUpper);
+  if (inputBoardID != "all") {
+	localBoardIDs.insert(inputBoardID);
   } else {
 	localBoardIDs = boardIDs;
   }
 
-  if (inputAddressUpper != "all") {
+  if (inputAddress != "all") {
 	for (const string &s : localBoardIDs) {
 	  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
 	  list<tuple<int, string, string, string>> l;
-	  for(auto sample : samplesOfUniqueBoardID) {
-		if (get<TUPLE_ADDRESS>(sample) == inputAddressUpper) {
-		   l.emplace_back(sample);
+	  for (auto sample : samplesOfUniqueBoardID) {
+		if (get<TUPLE_ADDRESS>(sample) == inputAddress) {
+		  l.emplace_back(sample);
 		}
 	  }
 	  DataParser::outputGraph(l);
@@ -68,10 +60,14 @@ void operations(const string &filename, bool fileformat) {
 
   dp = new DataParser(filename, fileformat);
 
+  //dp->prepareBinEntrop();
+
 //just let the user input commands and exit when he wants to
-  while(true) {
+  while (true) {
 	std::cout << "Enter number to execute action" << endl << flush;
-	std::cout << "1 - Generate folder structure for specific board id & starting address to use it in the Python Histogram Script (not yet implemented)" << endl << flush;
+	std::cout
+		<< "1 - Generate folder structure for specific board id & starting address to use it in the Python Histogram Script (not yet implemented)"
+		<< endl << flush;
 	std::cout << "2 - Generate folder structure to use it in the Python Histogram Script" << endl << flush;
 	std::cout << "3 - Generate averaged images for specific board id & starting address" << endl << flush;
 	std::cout << "4 - Generate all averaged images per board id & starting address" << endl << flush;

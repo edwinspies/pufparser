@@ -55,6 +55,7 @@ class DataParser {
   list<tuple<int, string, string, string>> extractSamplesByBoardID(const string &boardID);
   static void outputGraph(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
   set<string> extractAllBoardIDs();
+  void prepareBinEntrop();
 
  private:
   void getDataFromCSV(const string &fileName);
@@ -64,7 +65,13 @@ class DataParser {
   static string convertRawDataAlternate(const string &data);
   static void writeDeviceDataIntoFile(const tuple<int, string, string, string> &data);
   static string commaSeparateData(const string &deviceData);
+  void calcBinaryEntropy(const list<tuple<int, string, string, string>> &firstBoard,
+						 const list<tuple<int, string, string, string>> &secondBoard);
   static double *getProbabilityOfIndex(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
+  static list<list<tuple<int, string, string, string>>> groupSamplesByAddress(const list<tuple<int,
+																							   string,
+																							   string,
+																							   string>> &samplesOfUniqueDevice);
   static void outputSingleImage(const list<tuple<int, string, string, string>> &samplesOfDeviceWithEqualAddress);
 
   list<tuple<int, string, string, string>> p_listOfSamples;
