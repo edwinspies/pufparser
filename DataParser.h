@@ -38,12 +38,11 @@ enum ALTERNATE_CSV_STRUCTURE {
   //this is required to not hardcode any index values in other functions
 };
 
-/// @brief Defines the index for the sample tuple which is standardized for all read csv formats
-enum TUPLE_STRUCTURE {
-  TUPLE_SAMPLE_NUMBER,
-  TUPLE_BOARD_ID,
-  TUPLE_ADDRESS,
-  TUPLE_RAW_DATA
+struct bitBlock{
+  int sampleNumber;
+  string boardID;
+  string address;
+  string rawData;
 };
 
 class DataParser {
@@ -52,29 +51,25 @@ class DataParser {
   ~DataParser();
 
   void processAndOutputDataToNDFormat();
-  list<tuple<int, string, string, string>> extractSamplesByBoardID(const string &boardID);
-  static void outputGraph(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
+  list<bitBlock> extractSamplesByBoardID(const string &boardID);
+  static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice);
   set<string> extractAllBoardIDs();
   void prepareBinEntrop();
 
  private:
   void getDataFromCSV(const string &fileName);
-  tuple<int, string, string, string> getNextLineAndSplitIntoTokens(istream &str);
-  static tuple<int, string, string, string> getTupleFromStdCSVToken(const vector<string> &result);
-  tuple<int, string, string, string> getTupleFromAlternateCSVToken(const vector<string> &result);
+  bitBlock getNextLineAndSplitIntoTokens(istream &str);
+  static bitBlock getTupleFromStdCSVToken(const vector<string> &result);
+  bitBlock getTupleFromAlternateCSVToken(const vector<string> &result);
   static string convertRawDataAlternate(const string &data);
-  static void writeDeviceDataIntoFile(const tuple<int, string, string, string> &data);
+  static void writeDeviceDataIntoFile(const bitBlock &data);
   static string commaSeparateData(const string &deviceData);
-  void calcBinaryEntropy(const list<tuple<int, string, string, string>> &firstBoard,
-						 const list<tuple<int, string, string, string>> &secondBoard);
-  static double *getProbabilityOfIndex(const list<tuple<int, string, string, string>> &samplesOfUniqueDevice);
-  static list<list<tuple<int, string, string, string>>> groupSamplesByAddress(const list<tuple<int,
-																							   string,
-																							   string,
-																							   string>> &samplesOfUniqueDevice);
-  static void outputSingleImage(const list<tuple<int, string, string, string>> &samplesOfDeviceWithEqualAddress);
+  void calcBinaryEntropy(const list<bitBlock> &firstBoard);
+  static double *getProbabilityOfIndex(const list<bitBlock> &samplesOfUniqueDevice);
+  static list<list<bitBlock>> groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice);
+  static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress);
 
-  list<tuple<int, string, string, string>> p_listOfSamples;
+  list<bitBlock> p_listOfSamples;
   bool altFileFormat;
   int currentSample;
 };

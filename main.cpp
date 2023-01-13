@@ -3,7 +3,6 @@
 #include <iostream>
 #include <list>
 #include <algorithm>
-#include <tuple>
 #include <chrono>
 #include <getopt.h>
 #include <cstring>
@@ -11,17 +10,20 @@
 using namespace std;
 DataParser *dp;
 
-string readInputFromConsole(const string& outputMessage) {
-  std::cout << outputMessage << endl << flush;
+string readInputFromConsole(const string &outputMessage) {
   std::string input;
+
+  std::cout << outputMessage << std::endl << std::flush;
   std::getline(std::cin, input);
 
   return input;
 }
 
-void processUserinputForPictureGen(const string& inputBoardID, const string& inputAddress, const set<string>& boardIDs) {
+void processUserinputForPictureGen(const string &inputBoardID,
+								   const string &inputAddress,
+								   const set<string> &boardIDs) {
   set<string> localBoardIDs;
-  list<tuple<int, string, string, string>> samplesOfUniqueBoardID;
+  list<bitBlock> samplesOfUniqueBoardID;
 
   //load localBoardIDs either with the given input or all board IDs
   if (inputBoardID != "all") {
@@ -33,9 +35,9 @@ void processUserinputForPictureGen(const string& inputBoardID, const string& inp
   if (inputAddress != "all") {
 	for (const string &s : localBoardIDs) {
 	  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
-	  list<tuple<int, string, string, string>> l;
-	  for (auto sample : samplesOfUniqueBoardID) {
-		if (get<TUPLE_ADDRESS>(sample) == inputAddress) {
+	  list<bitBlock> l;
+	  for (const bitBlock &sample : samplesOfUniqueBoardID) {
+		if (sample.address == inputAddress) {
 		  l.emplace_back(sample);
 		}
 	  }
@@ -48,7 +50,6 @@ void processUserinputForPictureGen(const string& inputBoardID, const string& inp
 	}
   }
 
-
 }
 
 void operations(const string &filename, bool fileformat) {
@@ -56,18 +57,18 @@ void operations(const string &filename, bool fileformat) {
   int actionNumber;
   string inputBoardID, inputAddress;
   size_t pos{};
-  list<tuple<int, string, string, string>> samplesOfUniqueBoardID;
+  list<bitBlock> samplesOfUniqueBoardID;
 
   dp = new DataParser(filename, fileformat);
 
-  //dp->prepareBinEntrop();
+  dp->prepareBinEntrop();
 
 //just let the user input commands and exit when he wants to
   while (true) {
 	std::cout << "Enter number to execute action" << endl << flush;
 	std::cout
 		<< "1 - Generate folder structure for specific board id & starting address to use it in the Python Histogram Script (not yet implemented)"
-		<< endl << flush;
+		<< std::endl << std::flush;
 	std::cout << "2 - Generate folder structure to use it in the Python Histogram Script" << endl << flush;
 	std::cout << "3 - Generate averaged images for specific board id & starting address" << endl << flush;
 	std::cout << "4 - Generate all averaged images per board id & starting address" << endl << flush;
@@ -79,21 +80,22 @@ void operations(const string &filename, bool fileformat) {
 	  actionNumber = stoi(input, &pos);
 	}
 	catch (std::invalid_argument const &ex) {
-	  cout << "std::invalid_argument::what(): " << ex.what() << '\n';
+	  std::cout << "std::invalid_argument::what(): " << ex.what() << '\n';
 	  actionNumber = -1;
 	}
 
 	auto start = std::chrono::steady_clock::now();
 	allBoardIDs = dp->extractAllBoardIDs();
 
-	cout << "no of board ids: " << allBoardIDs.size() << endl;
+	std::cout << "no of board ids: " << allBoardIDs.size() << endl;
 
-	switch(actionNumber) {
+	switch (actionNumber) {
 	  case 1: //specific folder structure
 		//enter board id (maybe all)
 		inputBoardID = readInputFromConsole("Please enter Board ID (or \"all\"");
-		inputAddress = readInputFromConsole("Please enter Memory Address (or \"all\"");
 		//enter address (maybe all)
+		inputAddress = readInputFromConsole("Please enter Memory Address (or \"all\"");
+		//TODO
 		break;
 	  case 2: //full folder structure
 		dp->processAndOutputDataToNDFormat();
@@ -114,8 +116,7 @@ void operations(const string &filename, bool fileformat) {
 	  case 5: //exit
 		delete dp;
 		return;
-	  default:
-		std::cout << "No right number was entered, please try again" << endl << flush;
+	  default: std::cout << "No right number was entered, please try again" << endl << flush;
 	}
 
 	auto end = std::chrono::steady_clock::now();
@@ -131,10 +132,10 @@ int main(int argc, char **argv) {
   bool altFileFormat = false;
 
   if (argc < 2) {
-	cout << "Wrong input parameter, try again" << endl;
-	cout << "Usage: " << argv[0] << "-f {CSV filename} -i {request or alternative}" << endl;
-	cout << "[request] ist equal to a file that was requested on the github page" << endl;
-	cout << "[alternative] ist equal to a file that was provided via email" << endl;
+	std::cout << "Wrong input parameter, try again" << std::endl;
+	std::cout << "Usage: " << argv[0] << "-f {CSV filename} -i {request or alternative}" << std::endl;
+	std::cout << "[request] ist equal to a file that was requested on the github page" << std::endl;
+	std::cout << "[alternative] ist equal to a file that was provided via email" << std::endl;
   }
 
   while ((opt = getopt(argc, argv, "f:i:")) != -1) {
