@@ -172,13 +172,7 @@ string DataParser::convertRawDataAlternate(const string &data) {
 void DataParser::processAndOutputDataToNDFormat() {
   cout << "This will take a while depending on the no. of samples" << endl;
 
-  int check;
-  check = mkdir("data", 0777);
-  //if no dir was created, return
-  if (check == -1 && errno != EEXIST) {
-	cout << "data directory could not be created";
-	return;
-  }
+  createFolder("data");
 
   for (const bitBlock &singleSample : p_listOfSamples) {
 	writeDeviceDataIntoFile(singleSample);
@@ -188,16 +182,10 @@ void DataParser::processAndOutputDataToNDFormat() {
 /// @param data Requires a single sample Tuple that will be written into a file
 /// @brief receives a single device sample and processes this data to output a file for the Python ND Function
 void DataParser::writeDeviceDataIntoFile(const bitBlock &data) {
-  int check;
   ofstream outFile;
   const string &dirname = "data/" + data.boardID + "_" + data.address;
 
-  check = mkdir(dirname.c_str(), 0777);
-  //is no dir was created, return
-  if (check == -1 && errno != EEXIST) {
-	cout << "directory could not be created";
-	return;
-  }
+  createFolder(dirname);
 
   //instead of writing a file per sample id, call the file sample and
   const string &filename = "sample";
@@ -257,7 +245,7 @@ double *DataParser::getProbabilityOfIndex(const list<bitBlock> &samplesOfUniqueD
   return returnArray;
 }
 
-void DataParser::prepareBinEntrop() {
+void DataParser::prepareBinaryEntropyOutput() {
   set<string> allBoardIDs = extractAllBoardIDs();
   list<bitBlock> samples;
   list<list<bitBlock>> groupedSamples;
@@ -276,6 +264,13 @@ void DataParser::prepareBinEntrop() {
   }
 }
 
+void DataParser::createFolder(const string &folderName) {
+  const int check = mkdir(folderName.c_str(), 0777);
+  if (check == -1 && errno != EEXIST) {
+	throw std::invalid_argument("folder could not be created with error code: " + to_string(errno));
+  }
+}
+
 void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   set<string> allBoardIDs = extractAllBoardIDs();
   double *arr;
@@ -283,26 +278,17 @@ void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   const string &addressSubfolder = firstBoard.front().address + "/";
   const string &filename =
 	  generalFolder + addressSubfolder +
-	  firstBoard.front().boardID + "_" +
-	  firstBoard.front().address + "_" +
-	  to_string(firstBoard.size());
+		  firstBoard.front().boardID + "_" +
+		  firstBoard.front().address + "_" +
+		  to_string(firstBoard.size());
 
-
-  int check = mkdir(generalFolder.c_str(), 0777);
-  if (check == -1 && errno != EEXIST) {
-	cout << "directory could not be created " + to_string(errno);
-	return;
-  }
-  check = mkdir((generalFolder + addressSubfolder).c_str(), 0777);
-  //is no dir was created, return
-  if (check == -1 && errno != EEXIST) {
-	cout << "directory could not be created " + to_string(errno);
-	return;
-  }
+  createFolder(generalFolder);
+  createFolder(generalFolder + addressSubfolder);
 
   arr = getProbabilityOfIndex(firstBoard);
   for (int i = 0; i < 4096; ++i) {
 	if (arr[i] != 0.0 && arr[i] != 1.0) {
+	  //TODO check what happens with 1
 	  //binary entropy
 	  arr[i] = (-arr[i]) * std::log2(arr[i]) - (1 - arr[i]) * std::log2(1 - arr[i]);
 	}
@@ -375,38 +361,29 @@ void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice) {
 /// @brief Will write individual pixels in the file between 0 to [possiblePixelValues],
 /// depending on the corresponding values in the double array, ranging vom 0-1
 void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress) {
-  int check;
   double *array;
   const int possiblePixelValues = 63;
-  const string &subfolder = "pictures/";
+  const string subfolder = "pictures/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
-  const string &boardID = samplesOfDeviceWithEqualAddress.front().boardID;
-  const string &address = samplesOfDeviceWithEqualAddress.front().address;
+  const string boardID = samplesOfDeviceWithEqualAddress.front().boardID;
+  const string address = samplesOfDeviceWithEqualAddress.front().address;
 
   const string &filename = subfolder + "picture_" + boardID + "_" + address + "_" + noOfSamples;
 
-  check = mkdir(subfolder.c_str(), 0777);
-  //is no dir was created, return
-  if (check == -1 && errno != EEXIST) {
-	cout << "directory could not be created";
-	return;
-  }
+  createFolder(subfolder);
 
   array = getProbabilityOfIndex(samplesOfDeviceWithEqualAddress);
   ofstream pictureFile(filename + ".pgm");
 
   pictureFile << "P2" //Image format
 			  << "\n"
-			  << "256 256" //Image size; //TODO make this dynamic
+			  << "64 64" //Image size; //TODO make this dynamic
 			  << "\n"
 			  << possiblePixelValues //No. of possible values
 			  << "\n";
 
   for (int i = 0; i < 4096; i++) {
-	pictureFile << int(array[i] * possiblePixelValues) << " ";
-	pictureFile << int(array[i] * possiblePixelValues) << " ";
-	pictureFile << int(array[i] * possiblePixelValues) << " ";
-	pictureFile << int(array[i] * possiblePixelValues) << " ";
+	  pictureFile << int(array[i] * possiblePixelValues) << " ";
   }
 
   free(array);

@@ -54,7 +54,7 @@ class DataParser {
   list<bitBlock> extractSamplesByBoardID(const string &boardID);
   static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice);
   set<string> extractAllBoardIDs();
-  void prepareBinEntrop();
+  void prepareBinaryEntropyOutput();
 
  private:
   void getDataFromCSV(const string &fileName);
@@ -68,6 +68,7 @@ class DataParser {
   static double *getProbabilityOfIndex(const list<bitBlock> &samplesOfUniqueDevice);
   static list<list<bitBlock>> groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice);
   static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress);
+  static void createFolder(const string& folderName);
 
   list<bitBlock> p_listOfSamples;
   bool altFileFormat;

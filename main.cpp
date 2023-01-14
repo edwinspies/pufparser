@@ -19,7 +19,7 @@ string readInputFromConsole(const string &outputMessage) {
   return input;
 }
 
-void processUserinputForPictureGen(const string &inputBoardID,
+void processUserInputForPictureGen(const string &inputBoardID,
 								   const string &inputAddress,
 								   const set<string> &boardIDs) {
   set<string> localBoardIDs;
@@ -61,8 +61,6 @@ void operations(const string &filename, bool fileformat) {
 
   dp = new DataParser(filename, fileformat);
 
-  dp->prepareBinEntrop();
-
 //just let the user input commands and exit when he wants to
   while (true) {
 	std::cout << "Enter number to execute action" << endl << flush;
@@ -72,7 +70,8 @@ void operations(const string &filename, bool fileformat) {
 	std::cout << "2 - Generate folder structure to use it in the Python Histogram Script" << endl << flush;
 	std::cout << "3 - Generate averaged images for specific board id & starting address" << endl << flush;
 	std::cout << "4 - Generate all averaged images per board id & starting address" << endl << flush;
-	std::cout << "5 - exit" << endl << flush;
+	std::cout << "5 - Generate all entropy files" << endl << flush;
+	std::cout << "6 - exit" << endl << flush;
 	std::string input;
 	std::getline(std::cin, input);
 
@@ -91,9 +90,7 @@ void operations(const string &filename, bool fileformat) {
 
 	switch (actionNumber) {
 	  case 1: //specific folder structure
-		//enter board id (maybe all)
 		inputBoardID = readInputFromConsole("Please enter Board ID (or \"all\"");
-		//enter address (maybe all)
 		inputAddress = readInputFromConsole("Please enter Memory Address (or \"all\"");
 		//TODO
 		break;
@@ -101,19 +98,18 @@ void operations(const string &filename, bool fileformat) {
 		dp->processAndOutputDataToNDFormat();
 		break;
 	  case 3: //specific image
-		//enter board id (maybe all)
 		inputBoardID = readInputFromConsole("Please enter Board ID (or \"all\")");
-		//enter address (maybe all)
 		inputAddress = readInputFromConsole("Please enter Memory Address (or \"all\")");
-		processUserinputForPictureGen(inputBoardID, inputAddress, allBoardIDs);
+		processUserInputForPictureGen(inputBoardID, inputAddress, allBoardIDs);
 		break;
-	  case 4: //all board ids and all addresses
+	  case 4: //all images
 		for (const string &s : allBoardIDs) {
 		  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
 		  DataParser::outputGraph(samplesOfUniqueBoardID);
 		}
 		break;
-	  case 5: //exit
+	  case 5: dp->prepareBinaryEntropyOutput();
+	  case 6: //exit
 		delete dp;
 		return;
 	  default: std::cout << "No right number was entered, please try again" << endl << flush;
