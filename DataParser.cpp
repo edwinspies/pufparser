@@ -354,7 +354,6 @@ void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice, const 
 /// @brief Will write individual pixels in the file between 0 to [possiblePixelValues],
 /// depending on the corresponding values in the double array, ranging vom 0-1
 void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, const int markBit) {
-
   const int possiblePixelValues = 255;
   const string subfolder = "pictures/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());

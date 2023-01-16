@@ -73,7 +73,7 @@ class DataParser {
   list<bitBlock> p_listOfSamples;
   bool altFileFormat;
   int currentSample;
-  const int arraySize = 4096;
+  static const int arraySize = 4096;
 };
 
 #endif //PUFPARSER_DATAPARSER_H_
