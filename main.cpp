@@ -41,12 +41,12 @@ void processUserInputForPictureGen(const string &inputBoardID,
 		  l.emplace_back(sample);
 		}
 	  }
-	  DataParser::outputGraph(l);
+	  DataParser::outputGraph(l, -100);
 	}
   } else {
 	for (const string &s : localBoardIDs) {
 	  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
-	  DataParser::outputGraph(samplesOfUniqueBoardID);
+	  DataParser::outputGraph(samplesOfUniqueBoardID, -100);
 	}
   }
 
@@ -105,10 +105,11 @@ void operations(const string &filename, bool fileformat) {
 	  case 4: //all images
 		for (const string &s : allBoardIDs) {
 		  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
-		  DataParser::outputGraph(samplesOfUniqueBoardID);
+		  DataParser::outputGraph(samplesOfUniqueBoardID, -100);
 		}
 		break;
 	  case 5: dp->prepareBinaryEntropyOutput();
+	  	break;
 	  case 6: //exit
 		delete dp;
 		return;

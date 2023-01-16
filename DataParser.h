@@ -52,7 +52,7 @@ class DataParser {
 
   void processAndOutputDataToNDFormat();
   list<bitBlock> extractSamplesByBoardID(const string &boardID);
-  static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice);
+  static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice, int markBit);
   set<string> extractAllBoardIDs();
   void prepareBinaryEntropyOutput();
 
@@ -65,14 +65,15 @@ class DataParser {
   static void writeDeviceDataIntoFile(const bitBlock &data);
   static string commaSeparateData(const string &deviceData);
   void calcBinaryEntropy(const list<bitBlock> &firstBoard);
-  static double *getProbabilityOfIndex(const list<bitBlock> &samplesOfUniqueDevice);
+  static void getProbabilityOfIndex(double *array, int arraySize, const list<bitBlock> &samplesOfUniqueDevice);
   static list<list<bitBlock>> groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice);
-  static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress);
+  static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
   static void createFolder(const string& folderName);
 
   list<bitBlock> p_listOfSamples;
   bool altFileFormat;
   int currentSample;
+  const int arraySize = 4096;
 };
 
 #endif //PUFPARSER_DATAPARSER_H_

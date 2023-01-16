@@ -1,13 +1,10 @@
 #include "DataParser.h"
 
 #include <iostream>
-#include <vector>
 #include <sstream>
 #include <fstream>
-#include <list>
 #include <algorithm>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <bitset>
 #include <valarray>
 
@@ -37,7 +34,7 @@ void DataParser::getDataFromCSV(const string &fileName) {
 	}
 	fb.close();
   } else {
-	cout << "File not found " + fileName;
+	throw std::invalid_argument("File not found " + fileName);
   }
 
   if (altFileFormat) p_listOfSamples.pop_front();
@@ -222,27 +219,18 @@ string DataParser::commaSeparateData(const string &deviceRawData) {
 
 /// @param data List that contains samples (ideally only from the same board ID & starting address)
 /// @brief values close to 1 have a high tendency to be 1, analog for 0
-double *DataParser::getProbabilityOfIndex(const list<bitBlock> &samplesOfUniqueDevice) {
-  const int arraySize = 4096;
-
-  auto *returnArray = (double *) (calloc(sizeof(double), arraySize));
-  if (returnArray == nullptr) {
-	cout << "Calloc failed; aborting...";
-	exit(-1);
-  }
-
+void DataParser::getProbabilityOfIndex(double *array, const int arraySize, const list<bitBlock> &samplesOfUniqueDevice) {
   for (bitBlock sample : samplesOfUniqueDevice) {
 	for (int i = 0; (i < arraySize) && (i < sample.rawData.size()); ++i) {
-	  if (sample.rawData.at(i) == '1') returnArray[i]++;
+	  if (sample.rawData.at(i) == '1') array[i]++;
 	}
   }
 
   unsigned long sizeOfData = samplesOfUniqueDevice.size();
   for (int i = 0; i < arraySize; ++i) {
-	returnArray[i] /= (double) sizeOfData;
+	array[i] /= (double) sizeOfData;
   }
 
-  return returnArray;
 }
 
 void DataParser::prepareBinaryEntropyOutput() {
@@ -273,7 +261,6 @@ void DataParser::createFolder(const string &folderName) {
 
 void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   set<string> allBoardIDs = extractAllBoardIDs();
-  double *arr;
   const string &generalFolder = "entropy/";
   const string &addressSubfolder = firstBoard.front().address + "/";
   const string &filename =
@@ -285,29 +272,35 @@ void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   createFolder(generalFolder);
   createFolder(generalFolder + addressSubfolder);
 
-  arr = getProbabilityOfIndex(firstBoard);
-  for (int i = 0; i < 4096; ++i) {
+  auto *arr = (double *) (calloc(sizeof(double), arraySize));
+  if (arr == nullptr) {
+	throw std::invalid_argument("Calloc failed; aborting...");
+  }
+
+  getProbabilityOfIndex(arr, arraySize, firstBoard);
+  for (int i = 0; i < arraySize; ++i) {
 	if (arr[i] != 0.0 && arr[i] != 1.0) {
 	  //TODO check what happens with 1
 	  //binary entropy
 	  arr[i] = (-arr[i]) * std::log2(arr[i]) - (1 - arr[i]) * std::log2(1 - arr[i]);
+	} else {
+	  arr[i] = 0;
 	}
   }
 
   vector<double> first;
-  for (int i = 0; i < 4096; i++) {
+  for (int i = 0; i < arraySize; i++) {
 	first.emplace_back(arr[i]);
   }
+  free(arr);
 
   ofstream entropyFile(filename);
 
-  for (int i = 0; i < 4096; i++) {
+  for (int i = 0; i < arraySize; i++) {
 	entropyFile << first[i] << std::endl;
   }
 
   entropyFile.close();
-
-  free(arr);
 }
 
 list<list<bitBlock>> DataParser::groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice) {
@@ -336,7 +329,7 @@ list<list<bitBlock>> DataParser::groupSamplesByAddress(const list<bitBlock> &sam
 /// @param samplesOfUniqueDevice List of samples that have the same unique board ID
 /// @brief This function processes samples of a unique device and splits those samples by their starting address,
 /// resulting in a separate pixel picture for each device & starting address
-void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice) {
+void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice, const int markBit) {
   //The List contains only samples for a single device, but the device is probed at different starting addresses,
   //so we need to output a graph for samples having the same board id && starting address
   list<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
@@ -354,15 +347,15 @@ void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice) {
 		++i;
 	  }
 	}
-	outputSingleImage(samplesOfDeviceWithEqualAddress);
+	outputSingleImage(samplesOfDeviceWithEqualAddress, markBit);
   }
 }
 
 /// @brief Will write individual pixels in the file between 0 to [possiblePixelValues],
 /// depending on the corresponding values in the double array, ranging vom 0-1
-void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress) {
-  double *array;
-  const int possiblePixelValues = 63;
+void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, const int markBit) {
+
+  const int possiblePixelValues = 255;
   const string subfolder = "pictures/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
   const string boardID = samplesOfDeviceWithEqualAddress.front().boardID;
@@ -372,18 +365,34 @@ void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqua
 
   createFolder(subfolder);
 
-  array = getProbabilityOfIndex(samplesOfDeviceWithEqualAddress);
+  auto *array = (double *) (calloc(sizeof(double), arraySize));
+  if (array == nullptr) {
+	throw std::invalid_argument("Calloc failed; aborting...");
+  }
+
+  getProbabilityOfIndex(array, arraySize, samplesOfDeviceWithEqualAddress);
   ofstream pictureFile(filename + ".pgm");
 
-  pictureFile << "P2" //Image format
+  pictureFile << "P3" //Image format
 			  << "\n"
-			  << "64 64" //Image size; //TODO make this dynamic
+			  << "64 64" //Image dimensions; //TODO make this dynamic
 			  << "\n"
 			  << possiblePixelValues //No. of possible values
 			  << "\n";
 
-  for (int i = 0; i < 4096; i++) {
-	  pictureFile << int(array[i] * possiblePixelValues) << " ";
+  for (int i = 0; i < arraySize; i++) {
+	if (markBit == i-1 || markBit == i+1) {
+	  pictureFile
+	  << 255 << " "
+	  << "0" << " "
+	  << "0" << " ";
+	} else {
+	  pictureFile
+	  <<  int(array[i] * possiblePixelValues) << " "
+	  << int(array[i] * possiblePixelValues) << " "
+	  << int(array[i] * possiblePixelValues) << " ";
+	}
+
   }
 
   free(array);
