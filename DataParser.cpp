@@ -233,13 +233,18 @@ void DataParser::getProbabilityOfIndex(double *array, const int arraySize, const
 
 }
 
+void DataParser::createFolder(const string &folderName) {
+  const int check = mkdir(folderName.c_str(), 0777);
+  if (check == -1 && errno != EEXIST) {
+	throw std::invalid_argument("folder could not be created with error code: " + to_string(errno));
+  }
+}
+
 void DataParser::prepareBinaryEntropyOutput() {
   set<string> allBoardIDs = extractAllBoardIDs();
   list<bitBlock> samples;
   list<list<bitBlock>> groupedSamples;
 
-  //TODO remove this for deeper analysis
-  int i = 0;
   for (const auto &boardID : allBoardIDs) {
 	//if (i++ > 10) break;
 	samples = extractSamplesByBoardID(boardID);
@@ -252,25 +257,19 @@ void DataParser::prepareBinaryEntropyOutput() {
   }
 }
 
-void DataParser::createFolder(const string &folderName) {
-  const int check = mkdir(folderName.c_str(), 0777);
-  if (check == -1 && errno != EEXIST) {
-	throw std::invalid_argument("folder could not be created with error code: " + to_string(errno));
-  }
-}
-
 void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   set<string> allBoardIDs = extractAllBoardIDs();
   const string &generalFolder = "entropy/";
-  const string &addressSubfolder = firstBoard.front().address + "/";
+  //const string &addressSubfolder = firstBoard.front().address + "/";
   const string &filename =
-	  generalFolder + addressSubfolder +
-		  firstBoard.front().boardID + "_" +
-		  firstBoard.front().address + "_" +
-		  to_string(firstBoard.size());
+	  generalFolder +
+	  //addressSubfolder +
+	  firstBoard.front().boardID + "_" +
+	  firstBoard.front().address + "_" +
+	  to_string(firstBoard.size());
 
   createFolder(generalFolder);
-  createFolder(generalFolder + addressSubfolder);
+  //createFolder(generalFolder + addressSubfolder);
 
   auto *arr = (double *) (calloc(sizeof(double), arraySize));
   if (arr == nullptr) {
@@ -326,6 +325,45 @@ list<list<bitBlock>> DataParser::groupSamplesByAddress(const list<bitBlock> &sam
   return returnList;
 }
 
+void DataParser::outputProbability(const list<bitBlock> &samplesOfUniqueDevice) {
+  list<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
+
+  //loop until the last sample is taken out of the list and into samplesOfDeviceWithEqualAddress
+  while (!localSamplesOfDevice.empty()) {
+	list<bitBlock> samplesOfDeviceWithEqualAddress;
+	string startingAddress = localSamplesOfDevice.front().address;
+	auto i = localSamplesOfDevice.begin();
+	while (i != localSamplesOfDevice.end()) {
+	  if (startingAddress == i.operator*().address) {
+		samplesOfDeviceWithEqualAddress.emplace_back(i.operator*());
+		localSamplesOfDevice.erase(i++);  // alternatively, i = items.erase(i);
+	  } else {
+		++i;
+	  }
+	}
+	outputSingleProbability(samplesOfDeviceWithEqualAddress);
+  }
+}
+
+void DataParser::outputSingleProbability(const list<bitBlock> &samplesOfDeviceWithEqualAddress) {
+  const string subfolder = "probability/";
+  const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
+  const string boardID = samplesOfDeviceWithEqualAddress.front().boardID;
+  const string address = samplesOfDeviceWithEqualAddress.front().address;
+  const string &filename = subfolder + "prob_" + boardID + "_" + address + "_" + noOfSamples;
+
+  createFolder(subfolder);
+
+  auto *array = callocDoubleArray(arraySize);
+
+  getProbabilityOfIndex(array, arraySize, samplesOfDeviceWithEqualAddress);
+  ofstream probabilityFile(filename);
+
+  for (int i = 0; i < arraySize; i++) {
+	probabilityFile << array[i] << std::endl;
+  }
+}
+
 /// @param samplesOfUniqueDevice List of samples that have the same unique board ID
 /// @brief This function processes samples of a unique device and splits those samples by their starting address,
 /// resulting in a separate pixel picture for each device & starting address
@@ -364,10 +402,7 @@ void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqua
 
   createFolder(subfolder);
 
-  auto *array = (double *) (calloc(sizeof(double), arraySize));
-  if (array == nullptr) {
-	throw std::invalid_argument("Calloc failed; aborting...");
-  }
+  auto *array = callocDoubleArray(arraySize);
 
   getProbabilityOfIndex(array, arraySize, samplesOfDeviceWithEqualAddress);
   ofstream pictureFile(filename + ".pgm");
@@ -395,6 +430,15 @@ void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqua
   }
 
   free(array);
+}
+
+double *DataParser::callocDoubleArray(int size) {
+  auto *array = (double *) (calloc(sizeof(double), size));
+  if (array == nullptr) {
+	throw std::invalid_argument("Calloc failed; aborting...");
+  }
+
+  return array;
 }
 
 /// @brief Returns all Samples that have a given board ID

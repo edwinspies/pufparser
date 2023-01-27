@@ -39,7 +39,7 @@ enum ALTERNATE_CSV_STRUCTURE {
 };
 
 struct bitBlock{
-  int sampleNumber;
+  int sampleNumber = 0;
   string boardID;
   string address;
   string rawData;
@@ -55,6 +55,7 @@ class DataParser {
   static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice, int markBit);
   set<string> extractAllBoardIDs();
   void prepareBinaryEntropyOutput();
+  static void outputProbability(const list<bitBlock> &samplesOfUniqueDevice);
 
  private:
   void getDataFromCSV(const string &fileName);
@@ -67,8 +68,11 @@ class DataParser {
   void calcBinaryEntropy(const list<bitBlock> &firstBoard);
   static void getProbabilityOfIndex(double *array, int arraySize, const list<bitBlock> &samplesOfUniqueDevice);
   static list<list<bitBlock>> groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice);
+
+  static void outputSingleProbability(const list<bitBlock> &samplesOfDeviceWithEqualAddress);
   static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
   static void createFolder(const string& folderName);
+  static double *callocDoubleArray(int size);
 
   list<bitBlock> p_listOfSamples;
   bool altFileFormat;

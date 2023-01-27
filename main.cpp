@@ -71,7 +71,8 @@ void operations(const string &filename, bool fileformat) {
 	std::cout << "3 - Generate averaged images for specific board id & starting address" << endl << flush;
 	std::cout << "4 - Generate all averaged images per board id & starting address" << endl << flush;
 	std::cout << "5 - Generate all entropy files" << endl << flush;
-	std::cout << "6 - exit" << endl << flush;
+	std::cout << "6 - Generate all probabilities per board id & starting address" << endl << flush;
+	std::cout << "7 - exit" << endl << flush;
 	std::string input;
 	std::getline(std::cin, input);
 
@@ -110,7 +111,13 @@ void operations(const string &filename, bool fileformat) {
 		break;
 	  case 5: dp->prepareBinaryEntropyOutput();
 	  	break;
-	  case 6: //exit
+	  case 6: //output Probability files
+		for (const string &s : allBoardIDs) {
+		  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
+		  DataParser::outputProbability(samplesOfUniqueBoardID);
+		}
+		break;
+	  case 7: //exit
 		delete dp;
 		return;
 	  default: std::cout << "No right number was entered, please try again" << endl << flush;
