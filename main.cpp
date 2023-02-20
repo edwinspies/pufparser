@@ -1,7 +1,6 @@
 #include "DataParser.h"
 
 #include <iostream>
-#include <list>
 #include <algorithm>
 #include <chrono>
 #include <getopt.h>
@@ -23,7 +22,7 @@ void processUserInputForPictureGen(const string &inputBoardID,
 								   const string &inputAddress,
 								   const set<string> &boardIDs) {
   set<string> localBoardIDs;
-  list<bitBlock> samplesOfUniqueBoardID;
+  vector<bitBlock> samplesOfUniqueBoardID;
 
   //load localBoardIDs either with the given input or all board IDs
   if (inputBoardID != "all") {
@@ -35,7 +34,7 @@ void processUserInputForPictureGen(const string &inputBoardID,
   if (inputAddress != "all") {
 	for (const string &s : localBoardIDs) {
 	  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);
-	  list<bitBlock> l;
+	  vector<bitBlock> l;
 	  for (const bitBlock &sample : samplesOfUniqueBoardID) {
 		if (sample.address == inputAddress) {
 		  l.emplace_back(sample);
@@ -57,9 +56,11 @@ void operations(const string &filename, bool fileformat) {
   int actionNumber;
   string inputBoardID, inputAddress;
   size_t pos{};
-  list<bitBlock> samplesOfUniqueBoardID;
+  vector<bitBlock> samplesOfUniqueBoardID;
 
   dp = new DataParser(filename, fileformat);
+
+  dp->tryTo3DData();
 
 //just let the user input commands and exit when he wants to
   while (true) {
@@ -110,7 +111,7 @@ void operations(const string &filename, bool fileformat) {
 		}
 		break;
 	  case 5: dp->prepareBinaryEntropyOutput();
-	  	break;
+		break;
 	  case 6: //output Probability files
 		for (const string &s : allBoardIDs) {
 		  samplesOfUniqueBoardID = dp->extractSamplesByBoardID(s);

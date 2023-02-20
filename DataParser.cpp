@@ -7,6 +7,9 @@
 #include <sys/stat.h>
 #include <bitset>
 #include <valarray>
+#include <array>
+#include <cstdlib>
+#include <cstdio>
 
 using namespace std;
 
@@ -17,7 +20,7 @@ DataParser::DataParser(const string &fileName, bool fileFormat) {
 }
 
 DataParser::~DataParser() {
-  p_listOfSamples.clear();
+  p_vectorOfSamples.clear();
 }
 
 /// @brief Reads in a CSV that has been saved in the format that is available at the Grenoble University; check enum STD_CSV_STRUCTURE
@@ -25,20 +28,20 @@ void DataParser::getDataFromCSV(const string &fileName) {
   filebuf fb;
 
   //if this function is called twice, clear all items before to remove old data
-  p_listOfSamples.clear();
+  p_vectorOfSamples.clear();
 
   if (fb.open(fileName, ios::in)) {
 	istream is(&fb);
 	while (is) {
-	  p_listOfSamples.emplace_back(getNextLineAndSplitIntoTokens(is));
+	  p_vectorOfSamples.emplace_back(getNextLineAndSplitIntoTokens(is));
 	}
 	fb.close();
   } else {
 	throw std::invalid_argument("File not found " + fileName);
   }
 
-  if (altFileFormat) p_listOfSamples.pop_front();
-  p_listOfSamples.pop_back();
+  p_vectorOfSamples.erase(p_vectorOfSamples.begin());
+  p_vectorOfSamples.erase(p_vectorOfSamples.end());
 }
 
 /// @brief Reads a single line of the csv and splits it into a tuple
@@ -164,14 +167,61 @@ string DataParser::convertRawDataAlternate(const string &data) {
   return returnString;
 }
 
-/// @brief Takes the list of all samples and proceeds to output them into the Python ND function format
+bool myfunction(const bitBlock &a, const bitBlock &b) { return a.sampleNumber < b.sampleNumber; }
+
+int DataParser::tryTo3DData() {
+  //10 boards á 4096 bits and 7 samples
+  //double arr[10][4096*64][7];
+  const int maxSamples = 7;
+  const int maxBoards = 10;
+  std::vector<std::array<std::array<bool, maxSamples>, 4096 * 64 >> arr(maxBoards);
+  char c[2] = {0};
+
+  set<string> s = extractAllBoardIDs();
+  vector<bitBlock> b;
+
+  int currentBoardCount = 0;
+
+  for (const string &board : s) {
+	b = extractSamplesByBoardID(board);
+	std::sort(b.begin(), b.end(), myfunction);
+
+	for (int currentSampleCount = 0; currentSampleCount < 7; currentSampleCount++) {
+	  for (int i = 0; i < 64; i++) { //each board is represented by 64 memory regions
+		for (int j = 0; j < b[i].rawData.size(); j++) { //each memory region consists of 4096 bits
+		  if (b[i].rawData.size() != 4096) throw std::invalid_argument("size should be 4096");
+		  c[0] = b[i].rawData.at(j);
+		  arr[currentBoardCount][i * 4096 + j][currentSampleCount] = atoi(c);
+		}
+	  }
+
+	  //remove already used samples (this will remove 64 bitblocks which equals to a readout of the whole board)
+	  // -> the next 64 items in the vector will be those from e.g. another day
+	  b.erase(b.begin(), b.begin() + 64);
+	}
+	if (currentBoardCount++ >= 9) break;
+  }
+
+  for (int board = 0; board < maxBoards; board++) {
+	ofstream bitFile("bitsOfFirstBoard board " + to_string(board));
+	for (int i = 0; i < arr[0].size(); i++) {
+	  if (i != 0 && i % 4096 == 0) bitFile << std::endl;
+	  bitFile << arr[board][i][0];
+	}
+	bitFile.close();
+  }
+
+  return 0;
+}
+
+/// @brief Takes the vector of all samples and proceeds to output them into the Python ND function format
 /// @details Depending on the no. of samples, this will take a few minutes since many folders and file are created
 void DataParser::processAndOutputDataToNDFormat() {
   cout << "This will take a while depending on the no. of samples" << endl;
 
   createFolder("data");
 
-  for (const bitBlock &singleSample : p_listOfSamples) {
+  for (const bitBlock &singleSample : p_vectorOfSamples) {
 	writeDeviceDataIntoFile(singleSample);
   }
 }
@@ -217,9 +267,11 @@ string DataParser::commaSeparateData(const string &deviceRawData) {
   return returnString;
 }
 
-/// @param data List that contains samples (ideally only from the same board ID & starting address)
+/// @param data Vector that contains samples (ideally only from the same board ID & starting address)
 /// @brief values close to 1 have a high tendency to be 1, analog for 0
-void DataParser::getProbabilityOfIndex(double *array, const int arraySize, const list<bitBlock> &samplesOfUniqueDevice) {
+void DataParser::getProbabilityOfIndex(double *array,
+									   const int arraySize,
+									   const vector<bitBlock> &samplesOfUniqueDevice) {
   for (bitBlock sample : samplesOfUniqueDevice) {
 	for (int i = 0; (i < arraySize) && (i < sample.rawData.size()); ++i) {
 	  if (sample.rawData.at(i) == '1') array[i]++;
@@ -242,8 +294,8 @@ void DataParser::createFolder(const string &folderName) {
 
 void DataParser::prepareBinaryEntropyOutput() {
   set<string> allBoardIDs = extractAllBoardIDs();
-  list<bitBlock> samples;
-  list<list<bitBlock>> groupedSamples;
+  vector<bitBlock> samples;
+  list<vector<bitBlock>> groupedSamples;
 
   for (const auto &boardID : allBoardIDs) {
 	//if (i++ > 10) break;
@@ -251,22 +303,22 @@ void DataParser::prepareBinaryEntropyOutput() {
 
 	groupedSamples = groupSamplesByAddress(samples);
 
-	for (const auto &listSameAddressSamples : groupedSamples) {
-	  calcBinaryEntropy(listSameAddressSamples);
+	for (const auto &vectorSameAddressSamples : groupedSamples) {
+	  calcBinaryEntropy(vectorSameAddressSamples);
 	}
   }
 }
 
-void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
+void DataParser::calcBinaryEntropy(const vector<bitBlock> &firstBoard) {
   set<string> allBoardIDs = extractAllBoardIDs();
   const string &generalFolder = "entropy/";
   //const string &addressSubfolder = firstBoard.front().address + "/";
   const string &filename =
 	  generalFolder +
-	  //addressSubfolder +
-	  firstBoard.front().boardID + "_" +
-	  firstBoard.front().address + "_" +
-	  to_string(firstBoard.size());
+		  //addressSubfolder +
+		  firstBoard.front().boardID + "_" +
+		  firstBoard.front().address + "_" +
+		  to_string(firstBoard.size());
 
   createFolder(generalFolder);
   //createFolder(generalFolder + addressSubfolder);
@@ -302,13 +354,13 @@ void DataParser::calcBinaryEntropy(const list<bitBlock> &firstBoard) {
   entropyFile.close();
 }
 
-list<list<bitBlock>> DataParser::groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice) {
-  list<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
-  list<list<bitBlock>> returnList;
+list<vector<bitBlock>> DataParser::groupSamplesByAddress(const vector<bitBlock> &samplesOfUniqueDevice) {
+  vector<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
+  list<vector<bitBlock>> returnList;
 
   //loop until the last sample is taken out of the list and into samplesOfDeviceWithEqualAddress
   while (!localSamplesOfDevice.empty()) {
-	list<bitBlock> samplesOfDeviceWithEqualAddress;
+	vector<bitBlock> samplesOfDeviceWithEqualAddress;
 	string startingAddress = localSamplesOfDevice.front().address;
 	auto i = localSamplesOfDevice.begin();
 	while (i != localSamplesOfDevice.end()) {
@@ -325,12 +377,12 @@ list<list<bitBlock>> DataParser::groupSamplesByAddress(const list<bitBlock> &sam
   return returnList;
 }
 
-void DataParser::outputProbability(const list<bitBlock> &samplesOfUniqueDevice) {
-  list<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
+void DataParser::outputProbability(const vector<bitBlock> &samplesOfUniqueDevice) {
+  vector<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
 
-  //loop until the last sample is taken out of the list and into samplesOfDeviceWithEqualAddress
+  //loop until the last sample is taken out of the vector and into samplesOfDeviceWithEqualAddress
   while (!localSamplesOfDevice.empty()) {
-	list<bitBlock> samplesOfDeviceWithEqualAddress;
+	vector<bitBlock> samplesOfDeviceWithEqualAddress;
 	string startingAddress = localSamplesOfDevice.front().address;
 	auto i = localSamplesOfDevice.begin();
 	while (i != localSamplesOfDevice.end()) {
@@ -345,7 +397,7 @@ void DataParser::outputProbability(const list<bitBlock> &samplesOfUniqueDevice) 
   }
 }
 
-void DataParser::outputSingleProbability(const list<bitBlock> &samplesOfDeviceWithEqualAddress) {
+void DataParser::outputSingleProbability(const vector<bitBlock> &samplesOfDeviceWithEqualAddress) {
   const string subfolder = "probability/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
   const string boardID = samplesOfDeviceWithEqualAddress.front().boardID;
@@ -364,17 +416,17 @@ void DataParser::outputSingleProbability(const list<bitBlock> &samplesOfDeviceWi
   }
 }
 
-/// @param samplesOfUniqueDevice List of samples that have the same unique board ID
+/// @param samplesOfUniqueDevice Vector of samples that have the same unique board ID
 /// @brief This function processes samples of a unique device and splits those samples by their starting address,
 /// resulting in a separate pixel picture for each device & starting address
-void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice, const int markBit) {
-  //The List contains only samples for a single device, but the device is probed at different starting addresses,
+void DataParser::outputGraph(const vector<bitBlock> &samplesOfUniqueDevice, const int markBit) {
+  //The Vector contains only samples for a single device, but the device is probed at different starting addresses,
   //so we need to output a graph for samples having the same board id && starting address
-  list<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
+  vector<bitBlock> localSamplesOfDevice(samplesOfUniqueDevice);
 
-  //loop until the last sample is taken out of the list and into samplesOfDeviceWithEqualAddress
+  //loop until the last sample is taken out of the vector and into samplesOfDeviceWithEqualAddress
   while (!localSamplesOfDevice.empty()) {
-	list<bitBlock> samplesOfDeviceWithEqualAddress;
+	vector<bitBlock> samplesOfDeviceWithEqualAddress;
 	string startingAddress = localSamplesOfDevice.front().address;
 	auto i = localSamplesOfDevice.begin();
 	while (i != localSamplesOfDevice.end()) {
@@ -391,7 +443,7 @@ void DataParser::outputGraph(const list<bitBlock> &samplesOfUniqueDevice, const 
 
 /// @brief Will write individual pixels in the file between 0 to [possiblePixelValues],
 /// depending on the corresponding values in the double array, ranging vom 0-1
-void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, const int markBit) {
+void DataParser::outputSingleImage(const vector<bitBlock> &samplesOfDeviceWithEqualAddress, const int markBit) {
   const int possiblePixelValues = 255;
   const string subfolder = "pictures/";
   const string noOfSamples = to_string(samplesOfDeviceWithEqualAddress.size());
@@ -415,16 +467,16 @@ void DataParser::outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqua
 			  << "\n";
 
   for (int i = 0; i < arraySize; i++) {
-	if (markBit == i-1 || markBit == i+1) {
+	if (markBit == i - 1 || markBit == i + 1) {
 	  pictureFile
-	  << 255 << " "
-	  << "0" << " "
-	  << "0" << " ";
+		  << 255 << " "
+		  << "0" << " "
+		  << "0" << " ";
 	} else {
 	  pictureFile
-	  <<  int(array[i] * possiblePixelValues) << " "
-	  << int(array[i] * possiblePixelValues) << " "
-	  << int(array[i] * possiblePixelValues) << " ";
+		  << int(array[i] * possiblePixelValues) << " "
+		  << int(array[i] * possiblePixelValues) << " "
+		  << int(array[i] * possiblePixelValues) << " ";
 	}
 
   }
@@ -442,22 +494,22 @@ double *DataParser::callocDoubleArray(int size) {
 }
 
 /// @brief Returns all Samples that have a given board ID
-list<bitBlock> DataParser::extractSamplesByBoardID(const string &boardID) {
-  list<bitBlock> returnList;
+vector<bitBlock> DataParser::extractSamplesByBoardID(const string &boardID) {
+  vector<bitBlock> returnVector;
 
-  for (const bitBlock &sample : p_listOfSamples) {
+  for (const bitBlock &sample : p_vectorOfSamples) {
 	if (sample.boardID == boardID) {
-	  returnList.emplace_back(sample);
+	  returnVector.emplace_back(sample);
 	}
   }
 
-  return returnList;
+  return returnVector;
 }
 
-///@brief Returns a set of (unique) board IDs that are located in the list of samples
+///@brief Returns a set of (unique) board IDs that are located in the vector of samples
 set<string> DataParser::extractAllBoardIDs() {
   set<string> returnSet;
-  for (const bitBlock &sample : p_listOfSamples) {
+  for (const bitBlock &sample : p_vectorOfSamples) {
 	returnSet.insert(sample.boardID);
   }
 

@@ -51,11 +51,13 @@ class DataParser {
   ~DataParser();
 
   void processAndOutputDataToNDFormat();
-  list<bitBlock> extractSamplesByBoardID(const string &boardID);
-  static void outputGraph(const list<bitBlock> &samplesOfUniqueDevice, int markBit);
+  vector<bitBlock> extractSamplesByBoardID(const string &boardID);
+  static void outputGraph(const vector<bitBlock> &samplesOfUniqueDevice, int markBit);
   set<string> extractAllBoardIDs();
   void prepareBinaryEntropyOutput();
-  static void outputProbability(const list<bitBlock> &samplesOfUniqueDevice);
+  static void outputProbability(const vector<bitBlock> &samplesOfUniqueDevice);
+
+  int tryTo3DData();
 
  private:
   void getDataFromCSV(const string &fileName);
@@ -65,16 +67,16 @@ class DataParser {
   static string convertRawDataAlternate(const string &data);
   static void writeDeviceDataIntoFile(const bitBlock &data);
   static string commaSeparateData(const string &deviceData);
-  void calcBinaryEntropy(const list<bitBlock> &firstBoard);
-  static void getProbabilityOfIndex(double *array, int arraySize, const list<bitBlock> &samplesOfUniqueDevice);
-  static list<list<bitBlock>> groupSamplesByAddress(const list<bitBlock> &samplesOfUniqueDevice);
+  void calcBinaryEntropy(const vector<bitBlock> &firstBoard);
+  static void getProbabilityOfIndex(double *array, int arraySize, const vector<bitBlock> &samplesOfUniqueDevice);
+  static list<vector<bitBlock>> groupSamplesByAddress(const vector<bitBlock> &samplesOfUniqueDevice);
 
-  static void outputSingleProbability(const list<bitBlock> &samplesOfDeviceWithEqualAddress);
-  static void outputSingleImage(const list<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
+  static void outputSingleProbability(const vector<bitBlock> &samplesOfDeviceWithEqualAddress);
+  static void outputSingleImage(const vector<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
   static void createFolder(const string& folderName);
   static double *callocDoubleArray(int size);
 
-  list<bitBlock> p_listOfSamples;
+  vector<bitBlock> p_vectorOfSamples;
   bool altFileFormat;
   int currentSample;
   static const int arraySize = 4096;
