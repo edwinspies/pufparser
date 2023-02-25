@@ -187,7 +187,7 @@ int DataParser::tryTo3DData() {
   //10 boards á 4096 bits and 7 samples
   //double arr[10][4096*64][7]; //this will lead to a segmentation fault
   const int maxSamples = 10;
-  const int maxBoards = 20;
+  const int maxBoards = 48;
   std::vector<std::array<std::array<bool, maxSamples>, 4096 * 64 >> arr(maxBoards);
   std::vector<std::string>
 	  helperData; //this will help to find out the board id because the 3D matrix has no additional space to store this info
@@ -224,12 +224,21 @@ int DataParser::tryTo3DData() {
 	if (currentBoardCount++ >= maxBoards) break;
   }
 
+  double bitaliasing[4096 * 64] = {0};
+  for (int i = 0; i < arr[i].size(); i++) {
+	for (int board = 0; board < maxBoards; board++) {
+	  bitaliasing[i] += arr[board][i][0];
+	}
+	bitaliasing[i] /= maxBoards;
+  }
+
+  createFolder("bitranks");
   //do this bit ranking calculation for every board
-  for (int j = 0; j < maxBoards; j++) {
+  for (int board = 0; board < maxBoards; board++) {
 
 	std::vector<std::pair<int, double>> bitRanking;
 	double uniformity = 0;
-	double bitaliasing[4096 * 64] = {0};
+
 	double reliability[4096 * 64] = {0};
 
 //	for (int i = 0; i < 4096 * 64; i++) {
@@ -238,31 +247,27 @@ int DataParser::tryTo3DData() {
 
 	//TODO maybe make the uniformity calculation analog to the probability difference calculation where
 
-	for (int i = 0; i < arr[j].size(); i++) {
-	  uniformity += arr[j][i][0];
+	for (int i = 0; i < arr[board].size(); i++) {
+	  uniformity += arr[board][i][0];
 
 	  for (int sample = 0; sample < maxSamples; sample++) {
-		reliability[i] += arr[j][i][sample];
+		reliability[i] += arr[board][i][sample];
 	  }
 	  reliability[i] /= maxSamples;
 
-	  for (int board = 0; board < maxBoards; board++) {
-		bitaliasing[i] += arr[board][i][0];
-	  }
-	  bitaliasing[i] /= maxBoards;
 	}
 
-	uniformity /= (double) arr[j].size();
+	uniformity /= (double) arr[board].size();
 
-	ofstream bitRankingFile("bitranking_for_board_" + helperData[j]);
+	ofstream bitRankingFile("bitranks/bitranking_for_board_" + helperData[board]);
 	for (int i = 0; i < 4096 * 64; i++) {
+	  //this can provide an actual rank by sorting; instead write all values directly into the output file
 	  //bitRanking.emplace_back(i, std::min(bitaliasing[i], uniformity) - binary_entropy(reliability[i]));
 	  bitRankingFile << (std::min(bitaliasing[i], uniformity) - binary_entropy(reliability[i])) << std::endl;
 	}
 	bitRankingFile.close();
   }
-
-//  //TODO this is only temporary because the bitRanking hold only the rankings for the first board
+  
 //  ofstream bitRankingFile("bitranking_for_board_"+ helperData[0]);
 //  for (int bit = 0; bit < 4096 * 64; bit++) {
 //	//if (i != 0 && i % 512 == 0) bitRankingFile << std::endl;
