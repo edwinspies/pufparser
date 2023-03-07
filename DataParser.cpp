@@ -185,12 +185,14 @@ bool sortbitblock(const bitBlock &a, const bitBlock &b) { return a.sampleNumber 
 
 int DataParser::tryTo3DData() {
   //10 boards á 4096 bits and 7 samples
-  //double arr[10][4096*64][7]; //this will lead to a segmentation fault
+  //double bitMatrix[10][4096*64][7]; //this will lead to a segmentation fault
   const int maxSamples = 10;
   const int maxBoards = 48;
-  std::vector<std::array<std::array<bool, maxSamples>, 4096 * 64 >> arr(maxBoards);
-  std::vector<std::string>
-	  helperData; //this will help to find out the board id because the 3D matrix has no additional space to store this info
+  //bitMatrix[maxBoards][4096*64][maxSamples]
+  std::vector<std::array<std::array<bool, maxSamples>, 4096 * 64 >> bitMatrix(maxBoards);
+  //this vector will help to find out the board id because the 3D matrix has no additional space to store this info
+  std::vector<std::string> helperData;
+
 
   //temporary variable to convert a char to an int
   char c[2] = {0};
@@ -214,7 +216,7 @@ int DataParser::tryTo3DData() {
 		for (int j = 0; j < b[i].rawData.size(); j++) { //each memory region consists of 4096 bits
 		  if (b[i].rawData.size() != 4096) throw std::invalid_argument("size should be 4096");
 		  c[0] = b[i].rawData.at(j);
-		  arr[currentBoardCount][i * 4096 + j][currentSampleCount] = atoi(c);
+		  bitMatrix[currentBoardCount][i * 4096 + j][currentSampleCount] = atoi(c);
 		}
 	  }
 	  //remove already used samples (this will remove 64 bitblocks which equals to a readout of the whole board)
@@ -224,50 +226,157 @@ int DataParser::tryTo3DData() {
 	if (currentBoardCount++ >= maxBoards) break;
   }
 
-  double bitaliasing[4096 * 64] = {0};
-  for (int i = 0; i < arr[i].size(); i++) {
-	for (int board = 0; board < maxBoards; board++) {
-	  bitaliasing[i] += arr[board][i][0];
-	}
-	bitaliasing[i] /= maxBoards;
-  }
-
-  createFolder("bitranks");
-  //do this bit ranking calculation for every board
-  for (int board = 0; board < maxBoards; board++) {
-
-	std::vector<std::pair<int, double>> bitRanking;
-	double uniformity = 0;
-
-	double reliability[4096 * 64] = {0};
-
-//	for (int i = 0; i < 4096 * 64; i++) {
-//	  if (reliability[i] != 0 && reliability[i] != 1) cout << "bit: " + to_string(i) << std::endl << std::flush;
+//  int count = 0;
+//  for (int d = 5; d < 50; d) {
+//	for (int i = 0; i < (4096*64)-d-1; i++) {
+//	  count += bitMatrix[0][i][0] ^ bitMatrix[0][i+d][0];
 //	}
+//	cout << "This is the result of autocorrelation("<< d << "):" << count << std::endl;
+//
+//	double x5 = (2*(count-((4096*64 - (double) d)/2)))/(std::sqrt(4096*64-d));
+//	cout << "x5 of " << d << " is: " << x5 << std::endl;
+//	d=(d+3)*2;
+//  }
 
+
+
+////////////////// Uniqueness
+//	double totalCount = 0;
+//	for (int u = 0; u < maxBoards-1; u++) {
+//	  for (int v = u+1; v < maxBoards; v++) {
+//		double hdCount = 0;
+//		for(int i = 0; i < 4096*64; i++) {
+//		  hdCount += bitMatrix[u][i][0] ^ bitMatrix[v][i][0];
+//		}
+//		hdCount = hdCount / (4096*64);
+//		hdCount*=100;
+//		totalCount += hdCount;
+//	  }
+//	}
+//
+//	double result;
+//	result = ((double) 2*totalCount) / (maxBoards*(maxBoards-1));
+//
+//	cout << "Uniqueness: " << result << std::endl;
+
+
+
+
+
+  //double reliability[maxBoards][4096 * 64] = {};
+  std::vector<std::array<double, 4096 * 64 >> reliability(maxBoards);
+  double uniformity[maxBoards] = {};
+
+  //FOR EVERY BOARD: do Bit evaluation
+  for (int board = 0; board < maxBoards; board++) {
 	//TODO maybe make the uniformity calculation analog to the probability difference calculation where
-
-	for (int i = 0; i < arr[board].size(); i++) {
-	  uniformity += arr[board][i][0];
+	//RELIABILITY / UNIFORMITY
+	for (int i = 0; i < bitMatrix[board].size(); i++) {
+	  uniformity[board] += bitMatrix[board][i][0];
 
 	  for (int sample = 0; sample < maxSamples; sample++) {
-		reliability[i] += arr[board][i][sample];
+		reliability[board][i] += bitMatrix[board][i][sample];
 	  }
-	  reliability[i] /= maxSamples;
+	  reliability[board][i] /= maxSamples;
+	}
+	uniformity[board] /= (double) bitMatrix[board].size();
+  }
 
+
+
+  //double bitaliasing[maxBoards][4096 * 64] = {0};
+  std::vector<std::array<double, 4096 * 64 >> bitaliasing(maxBoards);
+  //do a pairwise calculation of bit aliasing
+  for (int board1 = 0; board1 < maxBoards; ++board1) {
+	for (int board2 = 0; board2 < maxBoards; ++board2) {
+	  if (board1 == board2) continue;
+
+	  //do the calculation for every cell of the PUF
+	  for (int i = 0; i < bitMatrix[i].size(); ++i) {
+		bitaliasing[board1][i] += std::abs(bitMatrix[board1][i][0] - bitMatrix[board2][i][0]);
+	  }
 	}
 
-	uniformity /= (double) arr[board].size();
+	//now take the average of this pairwise comparison
+	for (int i = 0; i < bitMatrix[i].size(); ++i) {
+	  bitaliasing[board1][i] /= (maxBoards-1);
+	}
+  }
 
-	ofstream bitRankingFile("bitranks/bitranking_for_board_" + helperData[board]);
+
+
+//  int countSmaller03 = 0;
+//  int countBetween0305 = 0;
+//  int countBetween0507 = 0;
+//  int countGreater07 = 0;
+//  for(int i = 0; i < 4096*64; i++) {
+//	if (bitaliasing[0][i] < 0.3) {
+//	  countSmaller03++;
+//	} else if (bitaliasing[0][i] > 0.3 && bitaliasing[0][i] < 0.5) {
+//	  countBetween0305++;
+//	} else if (bitaliasing[0][i] >= 0.5 && bitaliasing[0][i] < 0.7) {
+//	  countBetween0507++;
+//	} else if (bitaliasing[0][i] >= 0.7) {
+//	  countGreater07++;
+//	}
+//  }
+//
+//  cout << "Values smaller than 0.3: " << countSmaller03 << std::endl;
+//  cout << "Values between 0.3 and 0.5: " << countBetween0305 << std::endl;
+//  cout << "Values between 0.5 and 0.7: " << countBetween0507 << std::endl;
+//  cout << "Values greater than 0.7: " << countGreater07 << std::endl;
+
+
+/*  double bitAliasingAverage[4096*64];
+  double reliabilityAverage[4096*64];
+  double uniformityAverage = 0;
+  //average over all boards
+  for (int i = 0; i < 4096*64; i++) {
+	for(int j = 0; j < maxBoards; j++) {
+	  bitAliasingAverage[i] += bitaliasing[j][i];
+	  reliabilityAverage[i] += reliability[j][i];
+	}
+	bitAliasingAverage[i] /= maxBoards;
+	reliabilityAverage[i] /= maxBoards;
+  }
+
+  for (int i = 0; i < maxBoards; i++) {
+	uniformityAverage += uniformity[i];
+  }
+  uniformityAverage /= maxBoards;
+
+  ofstream bitRankingFileAverage("bitranks/bitranking_for_board_ALL");
+  for (int i = 0; i < 4096 * 64; i++) {
+	bitRankingFileAverage << (std::min(bitAliasingAverage[i], uniformityAverage) - binary_entropy(reliabilityAverage[i]))
+				   << std::endl;
+  }
+  bitRankingFileAverage.close();*/
+
+  createFolder("bitranks");
+  //Output the BIT RANKING
+  double bitRankingMatrix[4096*64] = {};
+  double currentBitrank;
+  for (int board = 0; board < maxBoards; board++) {
+	//ofstream bitRankingFile("bitranks/bitranking_for_board_" + helperData[board]);
 	for (int i = 0; i < 4096 * 64; i++) {
 	  //this can provide an actual rank by sorting; instead write all values directly into the output file
 	  //bitRanking.emplace_back(i, std::min(bitaliasing[i], uniformity) - binary_entropy(reliability[i]));
-	  bitRankingFile << (std::min(bitaliasing[i], uniformity) - binary_entropy(reliability[i])) << std::endl;
+	  currentBitrank = (std::min(bitaliasing[board][i], uniformity[board]) - binary_entropy(reliability[board][i]));
+	  //bitRankingFile << bitrank << std::endl;
+	  bitRankingMatrix[i] += currentBitrank;
 	}
-	bitRankingFile.close();
+	//bitRankingFile.close();
   }
-  
+
+
+  //takes average over generated bitranking values
+  ofstream bitRankingFile("bitranks/bitranking_for_board_BITRANKAVERAGE");
+  for(int i = 0; i < 4096*64; i++) {
+	bitRankingMatrix[i] /= maxBoards;
+	bitRankingFile << bitRankingMatrix[i] << std::endl;
+  }
+  bitRankingFile.close();
+
 //  ofstream bitRankingFile("bitranking_for_board_"+ helperData[0]);
 //  for (int bit = 0; bit < 4096 * 64; bit++) {
 //	//if (i != 0 && i % 512 == 0) bitRankingFile << std::endl;
@@ -278,14 +387,18 @@ int DataParser::tryTo3DData() {
 
 //  for (int board = 0; board < maxBoards; board++) {
 //	ofstream bitFile("bitsOfFirstBoard board " + to_string(board));
-//	for (int i = 0; i < arr[0].size(); i++) {
+//	for (int i = 0; i < bitMatrix[0].size(); i++) {
 //	  if (i != 0 && i % 4096 == 0) bitFile << std::endl;
-//	  bitFile << arr[board][i][0];
+//	  bitFile << bitMatrix[board][i][0];
 //	}
 //	bitFile.close();
 //  }
 
   return 0;
+}
+
+void calculateReliability() {
+
 }
 
 /// @brief Takes the vector of all samples and proceeds to output them into the Python ND function format
