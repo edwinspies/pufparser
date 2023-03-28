@@ -5,6 +5,10 @@
 #include <vector>
 #include <list>
 #include <set>
+#include <array>
+
+#define MAX_SAMPLES 10
+#define MAX_BOARDS 48
 
 using namespace std;
 
@@ -70,11 +74,21 @@ class DataParser {
   void calcBinaryEntropy(const vector<bitBlock> &firstBoard);
   static void getProbabilityOfIndex(double *array, int arraySize, const vector<bitBlock> &samplesOfUniqueDevice);
   static list<vector<bitBlock>> groupSamplesByAddress(const vector<bitBlock> &samplesOfUniqueDevice);
+  void outputBitRanksAllBoards(int maxBoards, const std::vector<std::array<double, 4096 * 64 >> &bitaliasing,
+							   double uniformity[],
+							   const std::vector<std::array<double, 4096 * 64 >> &reliability, const std::vector<std::string> &helperData);
+  void outputBitRanksGlobalAverage(int maxBoards, const std::vector<std::array<double, 4096 * 64 >> &bitaliasing,
+											   double uniformity[],
+											   const std::vector<std::array<double, 4096 * 64 >> &reliability,
+											   const std::vector<std::string> &helperData);
+  void calcMetrics32Increments(const std::vector<std::array<std::array<bool, MAX_SAMPLES>, 4096 * 64 >> &bitMatrix,
+							   const std::vector<std::string> &helperData);
 
   static void outputSingleProbability(const vector<bitBlock> &samplesOfDeviceWithEqualAddress);
   static void outputSingleImage(const vector<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
   static void createFolder(const string& folderName);
   static double *callocDoubleArray(int size);
+  void sortCellsByBitRanks();
 
   vector<bitBlock> p_vectorOfSamples;
   bool altFileFormat;
