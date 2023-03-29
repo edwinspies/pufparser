@@ -81,6 +81,10 @@ class DataParser {
 											   double uniformity[],
 											   const std::vector<std::array<double, 4096 * 64 >> &reliability,
 											   const std::vector<std::string> &helperData);
+  void outputBitRanks32IncrementGlobalAverage(int maxBoards, const std::vector<std::array<double, 4096 * 32 >> &bitaliasing,
+														  double uniformity[],
+														  const std::vector<std::array<double, 4096 * 32 >> &reliability,
+														  const std::vector<std::string> &helperData);
   void calcMetrics32Increments(const std::vector<std::array<std::array<bool, MAX_SAMPLES>, 4096 * 64 >> &bitMatrix,
 							   const std::vector<std::string> &helperData);
 

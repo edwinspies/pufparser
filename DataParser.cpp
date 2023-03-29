@@ -285,8 +285,6 @@ int DataParser::tryTo3DData() {
 	uniformity[board] /= (double) bitMatrix[board].size();
   }
 
-
-
   //double bitaliasing[maxBoards][4096 * 64] = {0};
   std::vector<std::array<double, 4096 * 64 >> bitaliasing(maxBoards);
   //do a pairwise calculation of bit aliasing
@@ -306,7 +304,8 @@ int DataParser::tryTo3DData() {
 	}
   }
 
-
+  //outputBitRanksAllBoards(maxBoards, bitaliasing, uniformity, reliability, helperData);
+  //outputBitRanksGlobalAverage(maxBoards, bitaliasing, uniformity, reliability, helperData);
 
 //  int countSmaller03 = 0;
 //  int countBetween0305 = 0;
@@ -362,6 +361,8 @@ int DataParser::tryTo3DData() {
 
   return 0;
 }
+
+bool compPair (std::pair<int, double> i,std::pair<int, double> j) { return (i.second > j.second); }
 
 void DataParser::calcMetrics32Increments(const std::vector<std::array<std::array<bool, MAX_SAMPLES>, 4096 * 64 >> &bitMatrix,
 										 const std::vector<std::string> &helperData) {
@@ -419,25 +420,49 @@ void DataParser::calcMetrics32Increments(const std::vector<std::array<std::array
   }
 
 
-  createFolder("bitranks");
+  std::vector<std::array<std::pair<int, double>, 4096 * 32 >> bitRanking(maxBoards);
+  createFolder("bitranks_32increments");
   //Output the BIT RANKING
   double currentBitrank;
   for (int board = 0; board < maxBoards; board++) {
-	ofstream bitRankingFile("bitranks/32_increment_bitranking_for_board_" + helperData[board]);
+	//ofstream bitRankingFile("bitranks_32increments/32_increment_bitranking_for_board_" + helperData[board]);
 	for (int i = 0; i < 4096 * 32; i++) {
 	  //this can provide an actual rank by sorting; instead write all values directly into the output file
-	  //bitRanking.emplace_back(i, std::min(bitaliasing[i], uniformity) - binary_entropy(reliability[i]));
 	  currentBitrank = (std::min(bitaliasing[board][i], uniformity[board]) - binary_entropy(reliability[board][i]));
-	  bitRankingFile << currentBitrank << std::endl;
+
+	  bitRanking[board][i].first = i;
+	  bitRanking[board][i].second = currentBitrank;
+
+	  //bitRankingFile << currentBitrank << std::endl;
 	}
-	bitRankingFile.close();
+	//bitRankingFile.close();
   }
 
+  //this calculates the average rank of a cell and outputs it
+  double cellRankMap[4096 * 32] = {};
+  for (int i = 0; i < maxBoards; i++) {
+	std::sort(bitRanking[i].begin(), bitRanking[i].end(), compPair);
+	for (int j = 0; j < 4096 * 32; j++) {
+	  cellRankMap[bitRanking[i][j].first] += j+1; //add 1 because a "rank" usually starts with 1 and not 0
+	}
+  }
 
-}
+  //take the average by dividing by all boards
+  for (int i = 0; i < 4096 * 32; i++) {
+	cellRankMap[i] /= maxBoards;
+  }
 
-void DataParser::sortCellsByBitRanks() {
-  
+  ofstream cellRankAverage("bitranks_32increments/32_increment_cell_rank_average_all");
+  for(auto elem : cellRankMap) {
+	cellRankAverage << elem << std::endl;
+  }
+  cellRankAverage.close();
+
+  outputBitRanks32IncrementGlobalAverage(maxBoards, bitaliasing, uniformity, reliability, helperData);
+
+
+
+  cout << "we are now here";
 }
 
 void DataParser::outputBitRanksAllBoards(int maxBoards, const std::vector<std::array<double, 4096 * 64 >> &bitaliasing,
@@ -517,7 +542,61 @@ void DataParser::outputBitRanksGlobalAverage(int maxBoards, const std::vector<st
 
 }
 
-void calculateReliability() {
+void DataParser::outputBitRanks32IncrementGlobalAverage(int maxBoards, const std::vector<std::array<double, 4096 * 32 >> &bitaliasing,
+											 double uniformity[],
+											 const std::vector<std::array<double, 4096 * 32 >> &reliability,
+											 const std::vector<std::string> &helperData) {
+  //////////////////////// Takes the end result of the bit ranking metric and takes the average over all boards //////////
+  createFolder("bitranks_32increments");
+  //Output the BIT RANKING
+  double bitRankingMatrix[4096*32] = {};
+  double currentBitrank;
+  for (int board = 0; board < maxBoards; board++) {
+	for (int i = 0; i < 4096 * 32; i++) {
+	  //this can provide an actual rank by sorting; instead write all values directly into the output file
+	  currentBitrank = (std::min(bitaliasing[board][i], uniformity[board]) - binary_entropy(reliability[board][i]));
+	  bitRankingMatrix[i] += currentBitrank;
+	}
+  }
+
+
+  //takes average over generated bitranking values
+  ofstream bitRankingFile("bitranks_32increments/bitranking_for_board_endresultAverage");
+  for(int i = 0; i < 4096*32; i++) {
+	bitRankingMatrix[i] /= maxBoards;
+	bitRankingFile << bitRankingMatrix[i] << std::endl;
+  }
+  bitRankingFile.close();
+
+  ///////////////////////////////////////////////////
+
+//  ////////////////////////// Takes the average of the individual metrics before applying the bit ranking metric /////////
+//
+//  double bitAliasingAverage[4096*32];
+//  double reliabilityAverage[4096*32];
+//  double uniformityAverage = 0;
+//  //average over all boards
+//  for (int i = 0; i < 4096*32; i++) {
+//	for(int j = 0; j < maxBoards; j++) {
+//	  bitAliasingAverage[i] += bitaliasing[j][i];
+//	  reliabilityAverage[i] += reliability[j][i];
+//	}
+//	bitAliasingAverage[i] /= maxBoards;
+//	reliabilityAverage[i] /= maxBoards;
+//  }
+//
+//  for (int i = 0; i < maxBoards; i++) {
+//	uniformityAverage += uniformity[i];
+//  }
+//  uniformityAverage /= maxBoards;
+//
+//  ofstream bitRankingFileAverage("bitranks_32increments/bitranking_for_board_individualMetricsAverage");
+//  for (int i = 0; i < 4096 * 32; i++) {
+//	bitRankingFileAverage << (std::min(bitAliasingAverage[i], uniformityAverage) - binary_entropy(reliabilityAverage[i]))
+//						  << std::endl;
+//  }
+//  bitRankingFileAverage.close();
+
 
 }
 
