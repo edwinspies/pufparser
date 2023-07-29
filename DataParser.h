@@ -1,18 +1,20 @@
 #ifndef PUFPARSER_DATAPARSER_H_
 #define PUFPARSER_DATAPARSER_H_
 
-#include <string>
-#include <vector>
+#include <array>
 #include <list>
 #include <set>
-#include <array>
+#include <string>
+#include <vector>
 
 #define MAX_SAMPLES 10
 #define MAX_BOARDS 48
+#define NO_OF_BLOCKS 64
 
 using namespace std;
 
-/// @brief Delivers the index of the std csv file; can be modified to read other csv structured puf data
+/// @brief Delivers the index of the std csv file; can be modified to read other
+/// csv structured puf data
 enum STD_CSV_STRUCTURE {
   SAMPLE_NUMBER_STD,
   DATE_STD,
@@ -25,11 +27,12 @@ enum STD_CSV_STRUCTURE {
   UNDEFINED_COLUMN_8,
   RAW_DATA_STD,
   STD_CSV_LAST = RAW_DATA_STD
-  //STD_CSV_LAST needs to be updated if the structure changes,
-  //this is required to not hardcode any index values in other functions
+  // STD_CSV_LAST needs to be updated if the structure changes,
+  // this is required to not hardcode any index values in other functions
 };
 
-/// @brief Delivers the index of the csv file that ALTERNATE provided; can be modified to read other csv structured puf data
+/// @brief Delivers the index of the csv file that ALTERNATE provided; can be
+/// modified to read other csv structured puf data
 enum ALTERNATE_CSV_STRUCTURE {
   BOARD_TYPE_ALTERNATE,
   BOARD_ID_ALTERNATE,
@@ -38,11 +41,11 @@ enum ALTERNATE_CSV_STRUCTURE {
   RAW_DATA_ALTERNATE,
   DATE_ALTERNATE,
   ALTERNATE_CSV_LAST = DATE_ALTERNATE
-  //ALTERNATE_CSV_LAST needs to be updated if the structure changes,
-  //this is required to not hardcode any index values in other functions
+  // ALTERNATE_CSV_LAST needs to be updated if the structure changes,
+  // this is required to not hardcode any index values in other functions
 };
 
-struct bitBlock{
+struct bitBlock {
   int sampleNumber = 0;
   string boardID;
   string address;
@@ -56,12 +59,14 @@ class DataParser {
 
   void processAndOutputDataToNDFormat();
   vector<bitBlock> extractSamplesByBoardID(const string &boardID);
-  static void outputGraph(const vector<bitBlock> &samplesOfUniqueDevice, int markBit);
+  static void outputGraph(const vector<bitBlock> &samplesOfUniqueDevice,
+                          int markBit);
   set<string> extractAllBoardIDs();
   void prepareBinaryEntropyOutput();
   static void outputProbability(const vector<bitBlock> &samplesOfUniqueDevice);
 
   int tryTo3DData();
+  void outputBoardData();
 
  private:
   void getDataFromCSV(const string &fileName);
@@ -72,25 +77,39 @@ class DataParser {
   static void writeDeviceDataIntoFile(const bitBlock &data);
   static string commaSeparateData(const string &deviceData);
   void calcBinaryEntropy(const vector<bitBlock> &firstBoard);
-  static void getProbabilityOfIndex(double *array, int arraySize, const vector<bitBlock> &samplesOfUniqueDevice);
-  static list<vector<bitBlock>> groupSamplesByAddress(const vector<bitBlock> &samplesOfUniqueDevice);
-  void outputBitRanksAllBoards(int maxBoards, const std::vector<std::array<double, 4096 * 64 >> &bitaliasing,
-							   double uniformity[],
-							   const std::vector<std::array<double, 4096 * 64 >> &reliability, const std::vector<std::string> &helperData);
-  void outputBitRanksGlobalAverage(int maxBoards, const std::vector<std::array<double, 4096 * 64 >> &bitaliasing,
-											   double uniformity[],
-											   const std::vector<std::array<double, 4096 * 64 >> &reliability,
-											   const std::vector<std::string> &helperData);
-  void outputBitRanks32IncrementGlobalAverage(int maxBoards, const std::vector<std::array<double, 4096 * 32 >> &bitaliasing,
-														  double uniformity[],
-														  const std::vector<std::array<double, 4096 * 32 >> &reliability,
-														  const std::vector<std::string> &helperData);
-  void calcMetrics32Increments(const std::vector<std::array<std::array<bool, MAX_SAMPLES>, 4096 * 64 >> &bitMatrix,
-							   const std::vector<std::string> &helperData);
+  static void getProbabilityOfIndex(
+      double *array, int arraySize,
+      const vector<bitBlock> &samplesOfUniqueDevice);
+  static list<vector<bitBlock>> groupSamplesByAddress(
+      const vector<bitBlock> &samplesOfUniqueDevice);
+  void outputBitRanksAllBoards(
+      int maxBoards,
+      const std::vector<std::array<double, 4096 * NO_OF_BLOCKS>> &bitaliasing,
+      double uniformity[],
+      const std::vector<std::array<double, 4096 * NO_OF_BLOCKS>> &reliability,
+      const std::vector<std::string> &helperData);
+  void outputBitRanksGlobalAverage(
+      int maxBoards,
+      const std::vector<std::array<double, 4096 * NO_OF_BLOCKS>> &bitaliasing,
+      double uniformity[],
+      const std::vector<std::array<double, 4096 * NO_OF_BLOCKS>> &reliability,
+      const std::vector<std::string> &helperData);
+  void outputBitRanks32IncrementGlobalAverage(
+      int maxBoards,
+      const std::vector<std::array<double, 4096 * 32>> &bitaliasing,
+      double uniformity[],
+      const std::vector<std::array<double, 4096 * 32>> &reliability,
+      const std::vector<std::string> &helperData);
+  void calcMetrics32Increments(
+      const std::vector<std::array<std::array<bool, MAX_SAMPLES>,
+                                   4096 * NO_OF_BLOCKS>> &bitMatrix,
+      const std::vector<std::string> &helperData);
 
-  static void outputSingleProbability(const vector<bitBlock> &samplesOfDeviceWithEqualAddress);
-  static void outputSingleImage(const vector<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
-  static void createFolder(const string& folderName);
+  static void outputSingleProbability(
+      const vector<bitBlock> &samplesOfDeviceWithEqualAddress);
+  static void outputSingleImage(
+      const vector<bitBlock> &samplesOfDeviceWithEqualAddress, int markBit);
+  static void createFolder(const string &folderName);
   static double *callocDoubleArray(int size);
   void sortCellsByBitRanks();
 
@@ -100,4 +119,4 @@ class DataParser {
   static const int arraySize = 4096;
 };
 
-#endif //PUFPARSER_DATAPARSER_H_
+#endif  // PUFPARSER_DATAPARSER_H_
